@@ -79,46 +79,44 @@ void AudioSystem::EndFrame()
 
 
 //-----------------------------------------------------------------------------------------------
-SoundID AudioSystem::CreateOrGetSound( const std::string& soundFilePath, AudioMode mode )
+SoundID AudioSystem::CreateOrGetSound(const std::string& soundFilePath, AudioMode mode)
 {
-	std::map< std::string, SoundID >::iterator found = m_registeredSoundIDs.find( soundFilePath );
-	if( found != m_registeredSoundIDs.end() )
+	auto found = m_registeredSoundIDs.find(soundFilePath);
+	if (found != m_registeredSoundIDs.end())
 	{
 		return found->second;
 	}
-	else
+
+	FMOD::Sound* newSound = nullptr;
+
+	FMOD_MODE fmodMode = FMOD_DEFAULT;
+
+	switch (mode)
 	{
-		FMOD::Sound* newSound = nullptr;
-
-		FMOD_MODE fmodMode = FMOD_DEFAULT;
-		switch (mode)
-		{
-		case DEFAULT:
-			break;
-		case AUDIO2D:
-			fmodMode |= FMOD_2D;
-			break;
-		case AUDIO3D:
-			fmodMode |= FMOD_3D;
-			break;
-		default:
-			break;
-		}
-
-		fmodMode |= (mode == AudioMode::AUDIO3D) ? FMOD_3D : FMOD_2D;
-
-		m_fmodSystem->createSound( soundFilePath.c_str(), fmodMode, nullptr, &newSound );
-		if( newSound )
-		{
-			SoundID newSoundID = m_registeredSounds.size();
-			m_registeredSoundIDs[ soundFilePath ] = newSoundID;
-			m_registeredSounds.push_back( newSound );
-			return newSoundID;
-		}
+	case AUDIO2D:
+		fmodMode |= FMOD_2D;
+		break;
+	case AUDIO3D:
+		fmodMode |= FMOD_3D;
+		break;
+	default:
+		break;
 	}
 
-	return MISSING_SOUND_ID;
+	fmodMode |= (mode == AudioMode::AUDIO3D) ? FMOD_3D : FMOD_2D;
+
+	FMOD_RESULT result = m_fmodSystem->createSound(soundFilePath.c_str(), fmodMode, nullptr, &newSound);
+	if (result != FMOD_OK || !newSound)
+	{
+		ERROR_AND_DIE(Stringf("Failed to load sound: %s", soundFilePath.c_str()));
+	}
+
+	SoundID newSoundID = static_cast<SoundID>(m_registeredSounds.size());
+	m_registeredSoundIDs[soundFilePath] = newSoundID;
+	m_registeredSounds.push_back(newSound);
+	return newSoundID;
 }
+
 
 
 //-----------------------------------------------------------------------------------------------
@@ -193,11 +191,11 @@ SoundPlaybackID AudioSystem::StartSoundAt(SoundID soundID, const Vec3& soundPosi
 //-----------------------------------------------------------------------------------------------
 void AudioSystem::StopSound( SoundPlaybackID soundPlaybackID )
 {
-	if( soundPlaybackID == MISSING_SOUND_ID )
+	/*if( soundPlaybackID == MISSING_SOUND_ID )
 	{
 		ERROR_RECOVERABLE( "WARNING: attempt to stop sound on missing sound playback ID!" );
 		return;
-	}
+	}*/
 
 	FMOD::Channel* channelAssignedToSound = (FMOD::Channel*) soundPlaybackID;
 	channelAssignedToSound->stop();
