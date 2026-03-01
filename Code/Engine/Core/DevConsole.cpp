@@ -29,6 +29,13 @@ const Rgba8 DevConsole::GAME_MAJOR = Rgba8(255, 80, 0, 255);
 const Rgba8 DevConsole::GAME_MINOR = Rgba8(0, 180, 255, 255);
 const Rgba8 DevConsole::GAME_DEBUG = Rgba8(120, 255, 120, 255);
 
+const Rgba8 DevConsole::NET_MAJOR = Rgba8(0, 220, 0, 255);
+const Rgba8 DevConsole::NET_MINOR = Rgba8(0, 180, 0, 255);
+const Rgba8 DevConsole::NET_SENDING = Rgba8(255, 165, 0, 255);
+const Rgba8 DevConsole::NET_RECEIVING = Rgba8(0, 191, 255, 255);
+const Rgba8 DevConsole::NET_WARNING = Rgba8(255, 200, 0, 255);
+const Rgba8 DevConsole::NET_ERROR = Rgba8(255, 0, 0, 255);
+
 DevConsole::DevConsole(DevConsoleConfig const& config)
 	:m_config(config)
 {
@@ -142,9 +149,23 @@ void DevConsole::Execute(std::string const& consoleCommandText, bool echoCommand
 
 void DevConsole::AddLine(Rgba8 const& color, std::string const& text)
 {
+	std::scoped_lock lock(m_consoleMutex);
+	std::vector<std::string> lines = SplitStringOnDelimiter(text, '\n');
+
+	for (const std::string& lineText : lines)
+	{
+		DevConsoleLine line;
+		line.m_color = color;
+		line.m_text = lineText;
+		m_lineVerts.push_back(line);
+	}
+}
+
+
+void DevConsole::AddLine()
+{
 	DevConsoleLine line;
-	line.m_color = color;
-	line.m_text = text;
+	line.m_text = "";
 	m_lineVerts.push_back(line);
 }
 
@@ -329,7 +350,7 @@ bool DevConsole::Command_Clear(EventArgs& args)
 	g_theDevConsole->m_lineVerts.clear();
 
 	Rgba8 color = Rgba8(0, 200, 50, 255);
-	g_theDevConsole->AddLine(color, "Leep's Console v1.0");
+	g_theDevConsole->AddLine(color, "Leep's Console v1.1");
 
 	color = DevConsole::INFO_MAJOR;
 	g_theDevConsole->AddLine(color, "Type help for a list of commands");

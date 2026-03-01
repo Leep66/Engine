@@ -5,6 +5,7 @@
 #include "Engine/Core/FileUtils.hpp"
 #include "Engine/Core/EventSystem.hpp"
 #include "Engine/Core/Vertex_PCU.hpp"
+#include "Engine/Core/StringUtils.hpp"
 #include <vector>
 #define UNUSED(x) (void)(x);
 

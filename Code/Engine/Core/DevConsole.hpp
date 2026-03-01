@@ -6,6 +6,7 @@
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <mutex>
 
 class Renderer;
 class Camera;
@@ -59,6 +60,7 @@ public:
 	void EndFrame();
 
 	void Execute(std::string const& consoleCommandText, bool echoCommand = true);
+	void AddLine();
 	void AddLine(Rgba8 const& color, std::string const& text);
 	void Render(AABB2 const& bounds, Renderer* rendererOverride = nullptr) const;
 
@@ -77,6 +79,12 @@ public:
 	static const Rgba8 GAME_MAJOR;
 	static const Rgba8 GAME_MINOR;
 	static const Rgba8 GAME_DEBUG;
+	static const Rgba8 NET_MAJOR;
+	static const Rgba8 NET_MINOR;
+	static const Rgba8 NET_SENDING;
+	static const Rgba8 NET_RECEIVING;
+	static const Rgba8 NET_WARNING;
+	static const Rgba8 NET_ERROR;
 
 	static bool Event_KeyPressed(EventArgs& args);
 	static bool Event_CharInput(EventArgs& args);
@@ -88,6 +96,7 @@ protected:
 	
 protected:
 	DevConsoleConfig m_config;
+	mutable std::mutex m_consoleMutex;
 	bool m_isOpen = false;
 	std::string m_inputText;
 	int m_insertionPointPosition = 0;

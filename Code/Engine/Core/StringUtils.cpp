@@ -72,7 +72,24 @@ Strings SplitStringOnDelimiter(std::string const& originalString, char delimiter
 	return splitStrings;
 }
 
+std::string ToLower(const std::string& str) 
+{
+	std::string result = str;
+	for (char& c : result) {
+		c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+	}
+	return result;
+}
 
-
+std::string CleanupString(const std::string& input)
+{
+	std::string output;
+	for (char c : input) {
+		if (c != '\n' && c != '\r') {
+			output.push_back(c);
+		}
+	}
+	return output;
+}
 
 

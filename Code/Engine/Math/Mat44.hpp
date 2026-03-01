@@ -77,4 +77,6 @@ struct Mat44
 	void AppendScaleUniform3D(float uniformScaleXYZ);
 	void AppendScaleNonUniform2D(Vec2 const& nonUniformScaleXY);
 	void AppendScaleNonUniform3D(Vec3 const& nonUniformScaleXYZ);
+
+	
 };

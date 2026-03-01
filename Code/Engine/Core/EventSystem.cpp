@@ -6,6 +6,7 @@ extern EventSystem* g_theEventSystem;
 
 void EventSystem::SubscribeEventCallbackFunction(std::string const& eventName, EventCallbackFunction* func)
 {
+	std::scoped_lock lock(m_eventMutex);
 	SubscriptionList& subscribersForThisEvent = m_subscriptionListsByEventName[eventName];
 	EventSubscription* newEventSubscription = new EventSubscription(func);
 	subscribersForThisEvent.push_back(newEventSubscription); // #ToDo: check for null entries to fill in first
@@ -15,6 +16,7 @@ void EventSystem::SubscribeEventCallbackFunction(std::string const& eventName, E
 //------------------------------------------------------------------------------------------------
 void EventSystem::UnsubscribeEventCallbackFunction(std::string const& eventName, EventCallbackFunction* func)
 {
+	std::scoped_lock lock(m_eventMutex);
 	std::map< std::string, SubscriptionList >::iterator found = m_subscriptionListsByEventName.find(eventName);
 	if (found == m_subscriptionListsByEventName.end())
 	{
@@ -37,6 +39,7 @@ void EventSystem::UnsubscribeEventCallbackFunction(std::string const& eventName,
 //------------------------------------------------------------------------------------------------
 int EventSystem::FireEvent(std::string const& eventName, EventArgs& args)
 {
+	std::scoped_lock lock(m_eventMutex);
 	printf("  Firing event \"%s\"...\n", eventName.c_str());
 
 	std::map< std::string, SubscriptionList >::iterator found = m_subscriptionListsByEventName.find(eventName);
@@ -68,12 +71,14 @@ int EventSystem::FireEvent(std::string const& eventName, EventArgs& args)
 //------------------------------------------------------------------------------------------------
 int EventSystem::FireEvent(std::string const& eventName)
 {
+	std::scoped_lock lock(m_eventMutex);
 	EventArgs emptyArgs;
 	return FireEvent(eventName, emptyArgs);
 }
 
 std::vector<std::string> EventSystem::GetRegisteredEventNames() const
 {
+	std::scoped_lock lock(m_eventMutex);
 	std::vector<std::string> eventNames;
 	for (const auto& pair : m_subscriptionListsByEventName) {
 		eventNames.push_back(pair.first);

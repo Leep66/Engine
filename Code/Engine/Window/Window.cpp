@@ -5,6 +5,8 @@
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Core/StringUtils.hpp"
 #include "Engine/Core/DevConsole.hpp"
+#include "ThirdParty/imgui/imgui.h"
+#include "ThirdParty/imgui/backends/imgui_impl_win32.h"
 
 
 Window* Window::s_mainWindow = nullptr;
@@ -13,87 +15,101 @@ extern DevConsole* g_theDevConsole;
 //-----------------------------------------------------------------------------------------------
 // Handles Windows (Win32) messages/events; i.e. the OS is trying to tell us something happened.
 // This function is called back by Windows whenever we tell it to (by calling DispatchMessage).
-
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK WindowsMessageHandlingProcedure(HWND windowHandle, UINT wmMessageCode, WPARAM wParam, LPARAM lParam)
 {
+	if (ImGui_ImplWin32_WndProcHandler(windowHandle, wmMessageCode, wParam, lParam))
+		return 1;
+
+	ImGuiIO* ioPtr = ImGui::GetCurrentContext() ? &ImGui::GetIO() : nullptr;
+	const bool wantKbd = ioPtr && ioPtr->WantCaptureKeyboard;
+	const bool wantMouse = ioPtr && ioPtr->WantCaptureMouse;
+
 	InputSystem* input = nullptr;
 	if (Window::s_mainWindow)
 	{
 		WindowConfig const& config = Window::s_mainWindow->GetConfig();
 		input = config.m_inputSystem;
 	}
+
 	switch (wmMessageCode)
 	{
-		// App close requested via "X" button, or right-click "Close Window" on task bar, or "Close" from system menu, or Alt-F4
 	case WM_CLOSE:
 	{
-		//g_theApp->HandleQuitRequested();
-		//ERROR_AND_DIE("WM_CLOSE not yet supported!");
-		//return 0; // "Consumes" this message (tells Windows "okay, we handled it")
 		FireEvent("quit");
 		return 0;
 	}
-
-	// Raw physical keyboard "key-was-just-depressed" event (case-insensitive, not translated)
 	case WM_KEYDOWN:
 	{
-		EventArgs args;
-		args.SetValue("KeyCode", Stringf("%d", (unsigned char)wParam));
-		FireEvent("KeyPressed", args);
+		if (!wantKbd) {
+			EventArgs args;
+			args.SetValue("KeyCode", Stringf("%d", (unsigned char)wParam));
+			FireEvent("KeyPressed", args);
+		}
 		return 0;
 	}
-
-	// Raw physical keyboard "key-was-just-released" event (case-insensitive, not translated)
 	case WM_KEYUP:
 	{
-		EventArgs args;
-		args.SetValue("KeyCode", Stringf("%d", (unsigned char)wParam));
-		FireEvent("KeyReleased", args);
+		if (!wantKbd) {
+			EventArgs args;
+			args.SetValue("KeyCode", Stringf("%d", (unsigned char)wParam));
+			FireEvent("KeyReleased", args);
+		}
 		return 0;
-
 	}
 	case WM_LBUTTONDOWN:
 	{
-		EventArgs args;
-		args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_LEFT_MOUSE));
-		FireEvent("KeyPressed", args);
+		if (!wantMouse) {
+			EventArgs args; args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_LEFT_MOUSE));
+			FireEvent("KeyPressed", args);
+		}
 		return 0;
 	}
 	case WM_LBUTTONUP:
 	{
-		EventArgs args;
-		args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_LEFT_MOUSE));
-		FireEvent("KeyReleased", args);
+		if (!wantMouse) {
+			EventArgs args; args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_LEFT_MOUSE));
+			FireEvent("KeyReleased", args);
+		}
 		return 0;
 	}
 	case WM_RBUTTONDOWN:
 	{
-		EventArgs args;
-		args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_RIGHT_MOUSE));
-		FireEvent("KeyPressed", args);
+		if (!wantMouse) {
+			EventArgs args; args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_RIGHT_MOUSE));
+			FireEvent("KeyPressed", args);
+		}
 		return 0;
 	}
 	case WM_RBUTTONUP:
 	{
-		EventArgs args;
-		args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_RIGHT_MOUSE));
-		FireEvent("KeyReleased", args);
+		if (!wantMouse) {
+			EventArgs args; args.SetValue("KeyCode", Stringf("%d", (unsigned char)KEYCODE_RIGHT_MOUSE));
+			FireEvent("KeyReleased", args);
+		}
+		return 0;
+	}
+	case WM_MOUSEWHEEL:
+	{
+		if (!wantMouse) {
+			short delta = GET_WHEEL_DELTA_WPARAM(wParam);
+			EventArgs args; args.SetValue("WheelDelta", Stringf("%d", (int)delta));
+			FireEvent("MouseWheel", args);
+		}
 		return 0;
 	}
 	case WM_CHAR:
 	{
-		if (g_theDevConsole && g_theDevConsole->IsOpen()) 
+		if (!wantKbd && g_theDevConsole && g_theDevConsole->IsOpen())
 		{
 			EventArgs args;
 			args.SetValue("Char", Stringf("%d", (unsigned char)wParam));
 			FireEvent("CharInput", args);
 		}
-
 		return 0;
 	}
 	}
 
-	// Send back to Windows any unhandled/unconsumed messages we want other apps to see (e.g. play/pause in music apps, etc.)
 	return DefWindowProc(windowHandle, wmMessageCode, wParam, lParam);
 }
 
@@ -116,8 +132,8 @@ void Window::CreateOSWindow()
 	RegisterClassEx(&windowClassDescription);
 
 	// #SD1ToDo: Add support for fullscreen mode (requires different window style flags than windowed mode)
-	DWORD const windowStyleFlags = WS_CAPTION | WS_BORDER /*| WS_THICKFRAME*/ | WS_SYSMENU | WS_OVERLAPPED;
-	DWORD const windowStyleExFlags = WS_EX_APPWINDOW;
+	DWORD windowStyleFlags = WS_CAPTION | WS_BORDER /*| WS_THICKFRAME*/ | WS_SYSMENU | WS_OVERLAPPED;
+	DWORD windowStyleExFlags = WS_EX_APPWINDOW;
 
 	// Get desktop rect, dimensions, aspect
 	RECT desktopRect;
@@ -149,18 +165,34 @@ void Window::CreateOSWindow()
 	// Calculate client rect bounds by centering the client area
 	float clientMarginX = 0.5f * (desktopWidth - clientWidth);
 	float clientMarginY = 0.5f * (desktopHeight - clientHeight);
+
+
 	RECT clientRect;
 	clientRect.left = (int)clientMarginX;
 	clientRect.right = clientRect.left + (int)clientWidth;
 	clientRect.top = (int)clientMarginY;
 	clientRect.bottom = clientRect.top + (int)clientHeight;
 
+	if (m_config.m_isFullScreen)
+	{
+		windowStyleFlags = WS_POPUP;
+		windowStyleExFlags = WS_EX_APPWINDOW;
+
+		clientRect.left = 0;
+		clientRect.top = 0;
+		clientRect.right = (int)desktopWidth;
+		clientRect.bottom = (int)desktopHeight;
+	}
+
+
 	// Calculate the outer dimensions of the physical window, including frame et. al.
 	RECT windowRect = clientRect;
-	AdjustWindowRectEx(&windowRect, windowStyleFlags, FALSE, windowStyleExFlags);
+	if (!m_config.m_isFullScreen)
+		AdjustWindowRectEx(&windowRect, windowStyleFlags, FALSE, windowStyleExFlags);
 
 	WCHAR windowTitle[1024];
 	MultiByteToWideChar(GetACP(), 0, m_config.m_windowTitle.c_str(), -1, windowTitle, sizeof(windowTitle) / sizeof(windowTitle[0]));
+	
 	m_windowHandle = CreateWindowEx(
 		windowStyleExFlags,
 		windowClassDescription.lpszClassName,
@@ -178,6 +210,18 @@ void Window::CreateOSWindow()
 	ShowWindow(static_cast<HWND>(m_windowHandle), SW_SHOW);
 	SetForegroundWindow(static_cast<HWND>(m_windowHandle));
 	SetFocus(static_cast<HWND>(m_windowHandle));
+
+	if (m_config.m_isFullScreen)
+	{
+		SetWindowPos(
+			static_cast<HWND>(m_windowHandle),
+			HWND_TOP,
+			0, 0,
+			(int)desktopWidth,
+			(int)desktopHeight,
+			SWP_NOZORDER | SWP_FRAMECHANGED
+		);
+	}
 
 	m_displayContext = GetDC(static_cast<HWND>(m_windowHandle));
 
@@ -261,7 +305,7 @@ void Window::RunMessagePump()
 	}
 }
 
-void* Window::GetHwnd() const
+void* Window::GetHWND() const
 {
 	return m_windowHandle;
 }
@@ -273,6 +317,6 @@ IntVec2 Window::GetClientDimensions() const
 
 bool Window::HasFocus() const
 {
-	return GetForegroundWindow() == (HWND)GetHwnd();
+	return GetForegroundWindow() == (HWND)GetHWND();
 }
 

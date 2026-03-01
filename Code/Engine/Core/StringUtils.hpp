@@ -12,6 +12,8 @@ const std::string Stringf( int maxLength, char const* format, ... );
 typedef std::vector< std::string >		Strings;
 
 Strings SplitStringOnDelimiter(std::string const& originalString, char delimiterToSplitOn);
+std::string ToLower(const std::string& str);
+std::string CleanupString(const std::string& input);
 
 
 

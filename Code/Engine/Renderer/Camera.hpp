@@ -22,6 +22,7 @@ public:
 	void SetOrthographicView(Vec2 const& bottomLeft, Vec2 const& topRight, float zNear = 0.0f, float zfar = 1.0f);
 	void SetPerspectiveView(float aspect, float fov, float zNear, float zfar);
 
+
 	void SetPositionAndOrientation(const Vec3& position, const EulerAngles& orientation);
 	void SetPosition(const Vec3& position);
 	Vec3 GetPosition() const;
@@ -49,8 +50,13 @@ public:
 
 	Mode GetMode() const { return m_mode; }
 	void SetMode(Mode mode) { m_mode = mode; }
+
+	Vec2 GetPerspectiveNearAndFar() const { return Vec2(m_perspectiveNear, m_perspectiveFar); }
 	
-	
+	void LookAt(const Vec3& targetPosition);
+
+	void LookAt(const Vec3& cameraPosition, const Vec3& targetPosition);
+	EulerAngles GetOrientationFromDirection(const Vec3& forwardDirection);
 protected:
 	Mode m_mode = eMode_Orthographic;
 

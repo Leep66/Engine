@@ -3,9 +3,8 @@
 #include <d3d11.h>
 
 Shader::Shader(const ShaderConfig& config)
-	:m_config(config)
+	: m_config(config)
 {
-	
 }
 
 Shader::~Shader()
@@ -13,9 +12,5 @@ Shader::~Shader()
 	DX_SAFE_RELEASE(m_vertexShader);
 	DX_SAFE_RELEASE(m_pixelShader);
 	DX_SAFE_RELEASE(m_inputLayout);
-}
-
-const std::string& Shader::GetName() const
-{
-	return m_config.m_name;
+	DX_SAFE_RELEASE(m_computeShader);
 }

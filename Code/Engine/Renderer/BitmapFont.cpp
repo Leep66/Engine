@@ -96,6 +96,13 @@ void BitmapFont::AddVertsForTextInBox2D(std::vector<Vertex_PCU>& vertexArray, st
 	}
 }
 
+void BitmapFont::AddVertsForShadowTextInBox2D(std::vector<Vertex_PCU>& vertexArray, std::string const& text, AABB2& box, float cellHeight, Rgba8 const& tint /*= Rgba8::WHITE*/, float cellAspectScale /*= 1.f*/, Vec2 const& alignment /*= Vec2(.5f, .5f)*/, float shadowOffset /*= 2.f*/, TextBoxMode mode /*= TextBoxMode::SHRINK_TO_FIT*/, int maxGlyphsToDraw /*= 99999999*/, float paddingY /*= 0.f*/)
+{
+	box.Translate(Vec2(shadowOffset, shadowOffset));
+	AddVertsForTextInBox2D(vertexArray, text, box, cellHeight, Rgba8::BLACK, cellAspectScale, alignment, mode, maxGlyphsToDraw, paddingY);
+	box.Translate(Vec2(-shadowOffset, -shadowOffset));
+	AddVertsForTextInBox2D(vertexArray, text, box, cellHeight, tint, cellAspectScale, alignment, mode, maxGlyphsToDraw, paddingY);
+}
 
 void BitmapFont::AddVertsForText3DAtOriginXForward(std::vector<Vertex_PCU>& verts, float cellHeight, std::string const& text, Rgba8 const& tint, float cellAspect, Vec2 const& alignment, int maxGlyphsToDraw)
 {

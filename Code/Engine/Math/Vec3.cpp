@@ -148,6 +148,23 @@ Rgba8 Vec3::ToRgba()
 	);
 }
 
+void Vec3::Normalize()
+{
+	float len = GetLength();
+	if (len > 1e-6f)
+	{
+		x /= len;
+		y /= len;
+		z /= len;
+	}
+	else
+	{
+		x = 0.0f;
+		y = 0.0f;
+		z = 1.0f; 
+	}
+}
+
 bool Vec3::operator==(Vec3 const& compare) const
 {
 	return (x == compare.x && y == compare.y && z == compare.z );

@@ -3,6 +3,7 @@
 #include "Engine/Core/EventSystem.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include <string>
+#include <mutex>
 
 enum class DebugRenderMode
 {
@@ -22,6 +23,8 @@ void DebugRenderSystemShutdown();
 
 void DebugRenderSetVisible();
 void DebugRenderSetHidden();
+void ToggleDebugRenderMode();
+bool IsDebugRender();
 void DebugRenderClear();
 
 void DebugRenderBeginFrame();
@@ -31,6 +34,7 @@ void DebugRenderEndFrame();
 
 void DebugRenderWorldObjects();
 void DebugRenderWorldTexts();
+void DebugRenderWorld2D(const Camera& camera);
 
 void DebugRenderWorldBillboardTexts(const Camera& camera);
 
@@ -113,12 +117,28 @@ void DebugAddWorldWireCone(
 
 void DebugAddScreenText(const std::string& text, const AABB2& box, float cellHeight,
 	const Vec2& alignment, float duration,
-	const Rgba8& start = Rgba8::WHITE, const Rgba8& endColor = Rgba8::WHITE);
+	const Rgba8& startColor = Rgba8::WHITE, const Rgba8& endColor = Rgba8::WHITE);
+
+void DebugAddScreenText(const std::string& text, const AABB2& box, float cellHeight, float cellAspectScale,
+	const Vec2& alignment, float duration,
+	const Rgba8& startColor = Rgba8::WHITE, const Rgba8& endColor = Rgba8::WHITE);
 
 void DebugAddMessage(const std::string& text,
 	float duration,
 	const Rgba8& startColor = Rgba8::WHITE,
 	const Rgba8& endColor = Rgba8::WHITE);
+
+void DebugAddWorldText2D(
+	const std::string& text,
+	const Vec2& worldPos,
+	float cellHeight,
+	const Vec2& alignment = Vec2(0.5f, 0.5f),
+	float duration = -1.0f,
+	const Rgba8& startColor = Rgba8::WHITE,
+	const Rgba8& endColor = Rgba8::WHITE
+);
+
+void DebugAddWorldAABB2(const AABB2& bounds, Texture* tex, const Rgba8& tint, float duration, DebugRenderMode mode);
 
 bool Command_DebugRenderClear(EventArgs& args);
 bool Command_DebugRenderToggle(EventArgs& args);

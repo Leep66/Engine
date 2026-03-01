@@ -16,6 +16,7 @@ public:
 	bool DecrementPeriodIfElapsed();
 	void ForceComplete();
 	float GetRemainingTime() const;
+	void Reset(float period);
 
 	const Clock* m_clock = nullptr;
 

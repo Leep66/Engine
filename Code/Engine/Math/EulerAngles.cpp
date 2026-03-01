@@ -115,6 +115,85 @@ Vec3 EulerAngles::GetUpNormal() const
 	return out_upKBasis;
 }
 
+EulerAngles EulerAngles::operator+(const EulerAngles& other) const
+{
+	return EulerAngles(
+		m_yawDegrees + other.m_yawDegrees,
+		m_pitchDegrees + other.m_pitchDegrees,
+		m_rollDegrees + other.m_rollDegrees
+	);
+}
+
+EulerAngles EulerAngles::operator-(const EulerAngles& other) const
+{
+	return EulerAngles(
+		m_yawDegrees - other.m_yawDegrees,
+		m_pitchDegrees - other.m_pitchDegrees,
+		m_rollDegrees - other.m_rollDegrees
+	);
+}
+
+EulerAngles EulerAngles::operator*(float scalar) const
+{
+	return EulerAngles(
+		m_yawDegrees * scalar,
+		m_pitchDegrees * scalar,
+		m_rollDegrees * scalar
+	);
+}
+
+EulerAngles EulerAngles::operator/(float scalar) const
+{
+	if (scalar == 0.f) 
+	{
+		return EulerAngles::ZERO;
+	}
+	return EulerAngles(
+		m_yawDegrees / scalar,
+		m_pitchDegrees / scalar,
+		m_rollDegrees / scalar
+	);
+}
+
+EulerAngles& EulerAngles::operator+=(const EulerAngles& other)
+{
+	m_yawDegrees += other.m_yawDegrees;
+	m_pitchDegrees += other.m_pitchDegrees;
+	m_rollDegrees += other.m_rollDegrees;
+	return *this;
+}
+
+EulerAngles& EulerAngles::operator-=(const EulerAngles& other)
+{
+	m_yawDegrees -= other.m_yawDegrees;
+	m_pitchDegrees -= other.m_pitchDegrees;
+	m_rollDegrees -= other.m_rollDegrees;
+	return *this;
+}
+
+EulerAngles& EulerAngles::operator*=(float scalar)
+{
+	m_yawDegrees *= scalar;
+	m_pitchDegrees *= scalar;
+	m_rollDegrees *= scalar;
+	return *this;
+}
+
+EulerAngles& EulerAngles::operator/=(float scalar)
+{
+	if (scalar != 0.f) {
+		m_yawDegrees /= scalar;
+		m_pitchDegrees /= scalar;
+		m_rollDegrees /= scalar;
+	}
+	return *this;
+}
+
+EulerAngles operator*(float scalar, const EulerAngles& angles)
+{
+	return angles * scalar;
+}
+
 
 
 

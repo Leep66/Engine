@@ -1,5 +1,7 @@
 #pragma once
 
+struct Vec4;
+
 struct Rgba8
 {
 	unsigned char r = 255;
@@ -32,11 +34,13 @@ struct Rgba8
 	Rgba8(unsigned char red, unsigned char green, unsigned char blue);
 
 	static Rgba8 ScaleColor(Rgba8 color, float percent, float aFactor=1.f);
+	Vec4 ToVec4();
 
 	void SetFromText(char const* text);
 
 	void GetAsFloats(float* colorAsFloats) const;
 	bool operator==(Rgba8 const& compare) const;
+	bool operator!=(Rgba8 const& compare) const;
 };
 
 Rgba8 Interpolate(Rgba8 startColor, Rgba8 endColor, float fractionOfEnd);

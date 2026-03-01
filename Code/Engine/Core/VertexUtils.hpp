@@ -24,7 +24,7 @@ void TransformVertexArray3D(std::vector<Vertex_PCU>& verts, const Mat44& transfo
 void TransformVertexArray3D(std::vector<Vertex_PCUTBN>& verts, const Mat44& transform);
 AABB2 GetVertexBounds2D(const std::vector<Vertex_PCU>& verts);
 
-
+void AddVertsForConvexPolygon2D(std::vector<Vertex_PCU>& verts, std::vector<Vec2> const& polygonVertsCCW, Rgba8 const& color);
 
 void AddVertsForDisc2D(std::vector<Vertex_PCU>& verts, Vec2 const& discCenter, float discRadius, Rgba8 const& color);
 void AddVertsForDisc2D(std::vector<Vertex_PCU>& verts, Disc2 const& disc, Rgba8 const& color);
@@ -45,6 +45,7 @@ void AddVertsForAABBWireframe3D(std::vector<Vertex_PCU>& verts,
 	AABB3 const& bounds, float lineThickness, 
 	Rgba8 const& tint = Rgba8::WHITE);
 
+void AddVertsForAABBWireframe3D(std::vector<Vertex_PCU>& vertices, std::vector<uint32_t>& indices, AABB3 const& bounds, float lineThickness = 0.1f, Rgba8 const& tint = Rgba8::WHITE);
 
 void AddVertsForOBB2D(std::vector<Vertex_PCU>& verts, OBB2 const& orientedBox, Rgba8 const& color);
 
@@ -57,6 +58,7 @@ void AddVertsForTriangle2D(std::vector<Vertex_PCU>& verts, Triangle2 const& tria
 void AddVertsForLineSegment2D(std::vector<Vertex_PCU>& verts, Vec2 const& start, Vec2 const& end, float thickness, Rgba8 const& color);
 void AddVertsForLineSegment2D(std::vector<Vertex_PCU>& verts, LineSegment2 const& lineSeg, float thickness, Rgba8 const& color);
 void AddVertsForLineSegment3D(std::vector<Vertex_PCU>& verts, Vec3 const& start, Vec3 const& end, float thickness, Rgba8 const& color);
+void AddVertsForLineSegment3D(std::vector<Vertex_PCU>& verts, std::vector<uint32_t>& indices, Vec3 const& start, Vec3 const& end, float thickness, Rgba8 const& color);
 void AddVertsForArrow2D(std::vector<Vertex_PCU>& verts, Vec2 tailPos, Vec2 tipPos, float arrowSize, float lineThickness, Rgba8 const& color);
 
 void AddVertsForQuad2D(std::vector<Vertex_PCU>& verts, Vec2 ccw0, Vec2 ccw1, Vec2 ccw2, Vec2 ccw3, Rgba8 tint, Vec2 uv0, Vec2 uv1, Vec2 uv2, Vec2 uv3);
@@ -71,6 +73,9 @@ void AddVertsForQuad3D(std::vector<Vertex_PCU>& verts,
 void AddVertsForQuad3D(std::vector<Vertex_PCUTBN>& verts, std::vector<unsigned int>& indexes,
 	const Vec3& bottomLeft, const Vec3& bottomRight, const Vec3& topRight, const Vec3& topLeft,
 	const Rgba8& color = Rgba8::WHITE, const AABB2& UVs = AABB2::ZERO_TO_ONE);
+
+void AddVertsForQuad3D(std::vector<Vertex_PCU>& verts, std::vector<unsigned int>& indexes,
+	const Vec3& bottomLeft, const Vec3& bottomRight, const Vec3& topRight, const Vec3& topLeft, const Rgba8& color, const AABB2& UVs);
 
 void AddVertsForRoundedQuad3D(std::vector<Vertex_PCUTBN>& verts, 
 	const Vec3& topLeft, const Vec3& bottomLeft, const Vec3& bottomRight, const Vec3& topRight, const Rgba8& color, const AABB2& UVs);
@@ -108,6 +113,39 @@ void AddVertsForCylinderZ3D(std::vector<Vertex_PCUTBN>& verts,
 	FloatRange const& minMaxZ, float radius, int numSlices, Rgba8 const& tint = Rgba8::WHITE,
 	AABB2 const& UVs = AABB2::ZERO_TO_ONE);
 
+void AddVertsForDiscZ3D(
+	std::vector<Vertex_PCUTBN>& verts,
+	std::vector<unsigned int>& indices,
+	Vec2 const& centerXY,
+	float z,
+	float radius,
+	int numSlices,
+	Rgba8 const& tint,
+	AABB2 const& UVs,
+	bool isTopFace);
+
+void AddVertsForRing3D(
+	std::vector<Vertex_PCU>& verts,
+	Vec3 const& center,
+	Vec3 const& normal,
+	float radius,
+	float thickness,
+	Rgba8 const& color,
+	int sides
+);
+
+void AddVertsForTorus3D(
+	std::vector<Vertex_PCUTBN>& verts,
+	std::vector<unsigned int>& indices,
+	Vec3 const& center,
+	Vec3 const& normal,
+	float majorRadius,
+	float tubeDiameter,
+	Rgba8 const& color,
+	int majorSides,
+	int tubeSides
+);
+
 void AddVertsForCylinderZWireframe3D(std::vector<Vertex_PCU>& verts, 
 	Vec2 const& centerXY, FloatRange const& minMaxZ, 
 	float radius, int numSlices, float lineThickness, 
@@ -142,5 +180,9 @@ void AddVertsForCone3D(std::vector<Vertex_PCU>& verts,
 	const AABB2& UVs = AABB2::ZERO_TO_ONE,
 	int numSlices = 8);
 
+void AddVertsForWireCone3D(std::vector<Vertex_PCU>& verts,
+	const Vec3& baseCenter, const Vec3& tip,
+	float baseRadius, const Rgba8& color, int segments);
 void AddVertsForPyramidArrow3D(std::vector<Vertex_PCU>& verts,
 	const Vec3& start, const Vec3& end, float radius, const Rgba8& color = Rgba8::WHITE);
+

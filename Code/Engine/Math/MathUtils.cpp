@@ -11,6 +11,7 @@
 #include "Engine/Math/Mat44.hpp"
 #include "Engine/Math/AABB3.hpp"
 #include "Engine/Math/FloatRange.hpp"
+#include "Engine/Math/RandomNumberGenerator.hpp"
 #include <cmath>
 #include <algorithm>
 
@@ -29,6 +30,13 @@ float CosDegrees(float degrees)
 {
 	float radians = ConvertDegreesToRadians(degrees);
 	return cosf(radians);
+}
+
+float ACosDegrees(float cosValue)
+{
+	cosValue = GetClamped(cosValue, -1.0f, 1.0f); 
+	float radians = acosf(cosValue);
+	return ConvertRadiansToDegrees(radians);
 }
 
 float SinDegrees(float degrees)
@@ -50,10 +58,24 @@ float GetDistance2D(Vec2 const& positionA, Vec2 const& positionB)
 	return sqrtf((deltaX * deltaX) + (deltaY * deltaY));
 }
 
+float GetDistance2D(IntVec2 const& positionA, IntVec2 const& positionB)
+{
+	float deltaX = (float)positionB.x - (float)positionA.x;
+	float deltaY = (float)positionB.y - (float)positionA.y;
+	return sqrtf((deltaX * deltaX) + (deltaY * deltaY));
+}
+
 float GetDistanceSquared2D(Vec2 const& positionA, Vec2 const& positionB)
 {
 	float deltaX = positionB.x - positionA.x;
 	float deltaY = positionB.y - positionA.y;
+	return ((deltaX * deltaX) + (deltaY * deltaY));
+}
+
+float GetDistanceSquared2D(IntVec2 const& positionA, IntVec2 const& positionB)
+{
+	float deltaX = (float)positionB.x - (float)positionA.x;
+	float deltaY = (float)positionB.y - (float)positionA.y;
 	return ((deltaX * deltaX) + (deltaY * deltaY));
 }
 
@@ -91,6 +113,19 @@ float GetDistanceXYSquared3D(Vec3 const& positionA, Vec3 const& positionB)
 	return ((deltaX * deltaX) + (deltaY * deltaY));
 }
 
+Vec4 Lerp(const Vec4& a, const Vec4& b, float t)
+{
+	if (t < 0.0f) t = 0.0f;
+	else if (t > 1.0f) t = 1.0f;
+
+	return Vec4(
+		a.x + (b.x - a.x) * t,
+		a.y + (b.y - a.y) * t,
+		a.z + (b.z - a.z) * t,
+		a.w + (b.w - a.w) * t
+	);
+}
+
 bool DoDiscsOverlap(Vec2 const& centerA, float radiusA, Vec2 const& centerB, float radiusB)
 {
 	float centerDistAtoB = GetDistance2D(centerA, centerB);
@@ -122,6 +157,17 @@ bool DoDiscAndCapsuleOverlap2D(Vec2 const& discCenter, float radius, Capsule2 ca
 
 	float distToLineSegment = (discCenter - closestPoint).GetLength();
 	return distToLineSegment <= radius;
+}
+
+bool DoAABBsOverlap2D(AABB2 const& a, AABB2 const& b)
+{
+	if (a.m_maxs.x <= b.m_mins.x) return false;
+	if (a.m_mins.x >= b.m_maxs.x) return false;
+
+	if (a.m_maxs.y <= b.m_mins.y) return false;
+	if (a.m_mins.y >= b.m_maxs.y) return false;
+
+	return true;
 }
 
 bool DoSpheresOverlap(Vec3 const& centerA, float radiusA, Vec3 const& centerB, float radiusB)
@@ -1502,7 +1548,199 @@ float ComputeQuinticBezier1D(float A, float B, float C, float D, float E, float 
 	return ABCDE + (BCDEF - ABCDE) * t;
 }
 
+float Identity(float t)
+{
+	{ return t; }
+}
 
+float SmoothStart2(float t)
+{
+	{ return t * t; }
+}
+
+float SmoothStart3(float t)
+{
+	{ return t * t * t; }
+}
+
+float SmoothStart4(float t)
+{
+	{ return t * t * t * t; }
+}
+
+float SmoothStart5(float t)
+{
+	{ return t * t * t * t * t; }
+}
+
+float SmoothStart6(float t)
+{
+	{ return t * t * t * t * t * t; }
+}
+
+float SmoothStop2(float t)
+{
+	{
+		float invT = 1.0f - t;
+		return 1.0f - invT * invT;
+	}
+}
+
+float SmoothStop3(float t)
+{
+	{
+		float invT = 1.0f - t;
+		return 1.0f - invT * invT * invT;
+	}
+}
+
+float SmoothStop4(float t)
+{
+	{
+		float invT = 1.0f - t;
+		return 1.0f - invT * invT * invT * invT;
+	}
+}
+
+float SmoothStop5(float t)
+{
+	{
+		float invT = 1.0f - t;
+		return 1.0f - invT * invT * invT * invT * invT;
+	}
+}
+
+float SmoothStop6(float t)
+{
+	{
+		float invT = 1.0f - t;
+		return 1.0f - invT * invT * invT * invT * invT * invT;
+	}
+}
+
+float SmoothStep3(float t)
+{
+	{
+		return t * t * (3.0f - 2.0f * t);
+	}
+}
+
+float SmoothStep5(float t)
+{
+	{
+		return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+	}
+
+}
+
+float Hesitate3(float t)
+{
+	{
+		return ComputeCubicBezier1D(0.0f, 1.0f, 0.0f, 1.0f, t);
+	}
+}
+
+float Hesitate5(float t)
+{
+	{
+		return ComputeQuinticBezier1D(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, t);
+	}
+}
+
+bool LexLess(Vec2 const& a, Vec2 const& b)
+{
+	if (a.x < b.x) return true;
+	if (a.x > b.x) return false;
+	return a.y < b.y;
+}
+
+float GetOverlapLength(float aMin, float aMax, float bMin, float bMax)
+{
+	float mn = (aMin > bMin) ? aMin : bMin;
+	float mx = (aMax < bMax) ? aMax : bMax;
+	float len = mx - mn;
+	return (len > 0.f) ? len : 0.f;
+}
+
+float ClampFloat(float v, float mn, float mx)
+{
+	if (v < mn) return mn;
+	if (v > mx) return mx;
+	return v;
+}
+
+bool AABBContainsAABB(AABB2 const& outer, AABB2 const& inner)
+{
+	return inner.m_mins.x >= outer.m_mins.x && inner.m_maxs.x <= outer.m_maxs.x
+		&& inner.m_mins.y >= outer.m_mins.y && inner.m_maxs.y <= outer.m_maxs.y;
+}
+
+void DeleteBSP(BSPNode* n)
+{
+	if (!n) return;
+	DeleteBSP(n->a);
+	DeleteBSP(n->b);
+	delete n;
+}
+
+void SplitBSP(BSPNode* n, float minLeafW, float minLeafH, int depthLeft)
+{
+	if (!n || depthLeft <= 0) return;
+
+	float w = n->bounds.m_maxs.x - n->bounds.m_mins.x;
+	float h = n->bounds.m_maxs.y - n->bounds.m_mins.y;
+
+	bool canSplitV = (w >= minLeafW * 2.f);
+	bool canSplitH = (h >= minLeafH * 2.f);
+	if (!canSplitV && !canSplitH) return;
+
+	bool splitVertical = false;
+	if (canSplitV && canSplitH) splitVertical = (w > h);
+	else if (canSplitV) splitVertical = true;
+
+	if (splitVertical)
+	{
+		float x0 = n->bounds.m_mins.x + minLeafW;
+		float x1 = n->bounds.m_maxs.x - minLeafW;
+		if (x1 <= x0) return;
+
+		float cutX = (x0 + x1) * 0.5f;
+
+		n->a = new BSPNode();
+		n->b = new BSPNode();
+		n->a->bounds = AABB2(n->bounds.m_mins.x, n->bounds.m_mins.y, cutX, n->bounds.m_maxs.y);
+		n->b->bounds = AABB2(cutX, n->bounds.m_mins.y, n->bounds.m_maxs.x, n->bounds.m_maxs.y);
+	}
+	else
+	{
+		float y0 = n->bounds.m_mins.y + minLeafH;
+		float y1 = n->bounds.m_maxs.y - minLeafH;
+		if (y1 <= y0) return;
+
+		float cutY = (y0 + y1) * 0.5f;
+
+		n->a = new BSPNode();
+		n->b = new BSPNode();
+		n->a->bounds = AABB2(n->bounds.m_mins.x, n->bounds.m_mins.y, n->bounds.m_maxs.x, cutY);
+		n->b->bounds = AABB2(n->bounds.m_mins.x, cutY, n->bounds.m_maxs.x, n->bounds.m_maxs.y);
+	}
+
+	SplitBSP(n->a, minLeafW, minLeafH, depthLeft - 1);
+	SplitBSP(n->b, minLeafW, minLeafH, depthLeft - 1);
+}
+
+
+void CollectLeaves(BSPNode* n, std::vector<AABB2>& out)
+{
+	if (!n) return;
+	if (!n->a && !n->b)
+	{
+		out.push_back(n->bounds);
+		return;
+	}
+	CollectLeaves(n->a, out);
+	CollectLeaves(n->b, out);
+}
 
 bool PushDiscOutOfPoint2D(Vec2& mobileDiscCenter, float discRadius, Vec2 const& fixedPoint)
 {
@@ -1699,6 +1937,35 @@ void BounceDiscsOutOfEachOther(Vec2& discCenterA, float discRadiusA, Vec2& discV
 }
 
 
+Disc2 DiscFromTwoPoints(Vec2 const& a, Vec2 const& b)
+{
+	Vec2 center = (a + b) * 0.5f;
+	float radius = GetDistance2D(a, b) * 0.5f;
+	return Disc2(center, radius);
+}
 
+Disc2 DiscFromThreePoints(Vec2 const& a, Vec2 const& b, Vec2 const& c)
+{
+	float d = 2.f * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+	if (fabsf(d) < 0.0001f)
+		return DiscFromTwoPoints(a, b);
+
+	float aSq = a.GetLengthSquared();
+	float bSq = b.GetLengthSquared();
+	float cSq = c.GetLengthSquared();
+
+	float cx = (aSq * (b.y - c.y) + bSq * (c.y - a.y) + cSq * (a.y - b.y)) / d;
+	float cy = (aSq * (c.x - b.x) + bSq * (a.x - c.x) + cSq * (b.x - a.x)) / d;
+
+	Vec2 center(cx, cy);
+	float radius = GetDistance2D(center, a);
+	return Disc2(center, radius);
+}
+
+bool IsPointInDisc(Disc2 const& disc, Vec2 const& p)
+{
+	float distSq = GetDistanceSquared2D(disc.m_center, p);
+	return distSq <= (disc.m_radius * disc.m_radius + 0.0001f);
+}
 
 

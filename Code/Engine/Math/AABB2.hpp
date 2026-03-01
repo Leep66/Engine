@@ -41,6 +41,9 @@ public:
 	AABB2 ChopOffLeft(float percentOfOriginalToChop, float extraWidthOfOriginalToChop);
 	AABB2 ChopOffRight(float percentOfOriginalToChop, float extraWidthOfOriginalToChop);
 
+	float GetWidth() const { return m_maxs.x - m_mins.x; }
+	float GetHeight() const { return m_maxs.y - m_mins.y; }
+
 	// operators
 	bool operator==(AABB2 const& rightHandSideCompare) const;
 };

@@ -48,7 +48,7 @@ SpriteDefinition const& SpriteSheet::GetSpriteDef(int spriteIndex) const
 SpriteDefinition const& SpriteSheet::GetSpriteDef(IntVec2 spriteCoords) const
 {
 	int index = spriteCoords.y * m_simpleGridLayout.x + spriteCoords.x;
-	GUARANTEE_OR_DIE(index >= 0 && index < static_cast<int> (m_spriteDefs.size()), "Invalid sprite coordinates!");
+	GUARANTEE_OR_DIE(index >= 0 && index < static_cast<int>(m_spriteDefs.size()), "Invalid sprite coordinates!");
 
 	return m_spriteDefs[index];
 

@@ -109,6 +109,25 @@ IntVec2 const IntVec2::operator-(IntVec2 const& vecToSubtract) const
 	return result;
 }
 
+IntVec2 const IntVec2::operator*(int scale) const
+{
+	IntVec2 result;
+	result.x *= scale;
+	result.y *= scale;
+
+	return result;
+}
+
+bool IntVec2::operator<(IntVec2 const& vecToCompare) const
+{
+	return (y < vecToCompare.y) || (y == vecToCompare.y && x < vecToCompare.x);
+}
+
+bool IntVec2::operator>(IntVec2 const& vecToCompare) const
+{
+	return (y > vecToCompare.y) || (y == vecToCompare.y && x > vecToCompare.x);
+}
+
 bool IntVec2::operator==(IntVec2 const& vecToCompare) const
 {
 	return x == vecToCompare.x && y == vecToCompare.y;

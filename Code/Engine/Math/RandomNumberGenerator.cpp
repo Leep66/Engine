@@ -1,6 +1,7 @@
 #include "Engine/Math/RandomNumberGenerator.hpp"
 
 #include <stdlib.h>
+/*
 
 int RandomNumberGenerator::RollRandomIntLessThan(int maxNotInclusive)
 {
@@ -35,6 +36,7 @@ float RandomNumberGenerator::RollRandomFloatInRange(FloatRange range)
 {
 	return RollRandomFloatInRange(range.m_min, range.m_max);
 }
+*/
 
 
 

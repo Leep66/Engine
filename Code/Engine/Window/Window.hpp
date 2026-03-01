@@ -13,6 +13,7 @@ struct WindowConfig
 	float			m_aspectRatio = (16.f / 9.f);
 	InputSystem*	m_inputSystem = nullptr;
 	std::string		m_windowTitle = "Unnamed SD Engine Application";
+	bool			m_isFullScreen = false;
 };
 
 class Window
@@ -30,7 +31,7 @@ public:
 	void* GetDisplayContext() const;
 	// Vec2 GetNormalizedMouseUV() const;
 
-	void* GetHwnd() const;
+	void* GetHWND() const;
 	IntVec2 GetClientDimensions() const;
 
 	float GetAspect() const { return m_config.m_aspectRatio; }

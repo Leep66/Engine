@@ -17,7 +17,15 @@ public:
 	Vec3 GetLeftNormal() const;
 	Vec3 GetUpNormal() const;
 
+	EulerAngles operator+(const EulerAngles& other) const;
+	EulerAngles operator-(const EulerAngles& other) const;
+	EulerAngles operator*(float scalar) const;
+	EulerAngles operator/(float scalar) const;
 
+	EulerAngles& operator+=(const EulerAngles& other);
+	EulerAngles& operator-=(const EulerAngles& other);
+	EulerAngles& operator*=(float scalar);
+	EulerAngles& operator/=(float scalar);
 
 public:
 	float m_yawDegrees = 0.f;

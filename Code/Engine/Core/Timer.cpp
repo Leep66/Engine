@@ -71,3 +71,9 @@ float Timer::GetRemainingTime() const
 	if (IsStopped()) return 0.f;
 	return (float)m_period - GetElapsedTime();
 }
+
+void Timer::Reset(float period)
+{
+	m_period = period;
+	m_startTime = m_clock->GetTotalSeconds();
+}

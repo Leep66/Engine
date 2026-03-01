@@ -1,5 +1,6 @@
 #include "Engine/Renderer/Camera.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Math/MathUtils.hpp"
 
 void Camera::SetOrthographicView(Vec2 const& bottomLeft, Vec2 const& topRight, float zNear, float zFar)
 {
@@ -133,4 +134,34 @@ Mat44 Camera::GetProjectionMatrix() const
 	return projection;
 }	
 
+void Camera::LookAt(const Vec3& targetPosition)
+{
+	Vec3 cameraPos = GetPosition();
+	Vec3 forward = (targetPosition - cameraPos).GetNormalized();
 
+	if (forward.GetLengthSquared() > 0.001f)
+	{
+		EulerAngles newOrientation = GetOrientationFromDirection(forward);
+		SetOrientation(newOrientation);
+	}
+}
+
+void Camera::LookAt(const Vec3& cameraPosition, const Vec3& targetPosition)
+{
+	SetPosition(cameraPosition);
+	LookAt(targetPosition);
+}
+
+EulerAngles Camera::GetOrientationFromDirection(const Vec3& forwardDirection)
+{
+	EulerAngles orientation;
+
+	orientation.m_yawDegrees = Atan2Degrees(forwardDirection.y, forwardDirection.x);
+
+	float horizontalLength = sqrtf(forwardDirection.x * forwardDirection.x + forwardDirection.y * forwardDirection.y);
+	orientation.m_pitchDegrees = Atan2Degrees(forwardDirection.z, horizontalLength);
+
+	orientation.m_rollDegrees = 0.0f;
+
+	return orientation;
+}

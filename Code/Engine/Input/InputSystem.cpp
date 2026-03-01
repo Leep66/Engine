@@ -108,7 +108,7 @@ void InputSystem::BeginFrame()
 		}
 
 		POINT screenCenter = { windowCenter.x, windowCenter.y };
-		ClientToScreen((HWND)g_theWindow->GetHwnd(), &screenCenter);
+		ClientToScreen((HWND)g_theWindow->GetHWND(), &screenCenter);
 		SetCursorPos(screenCenter.x, screenCenter.y);
 
 		m_cursorState.m_cursorClientPosition = windowCenter;
@@ -194,7 +194,7 @@ Vec2 InputSystem::GetCursorClientPosition() const
 {
 	POINT cursorPos;
 	GetCursorPos(&cursorPos);
-	ScreenToClient((HWND)g_theWindow->GetHwnd(), &cursorPos);
+	ScreenToClient((HWND)g_theWindow->GetHWND(), &cursorPos);
 
 	return Vec2((float)cursorPos.x, (float)cursorPos.y);
 }
@@ -215,6 +215,19 @@ Vec2 InputSystem::GetCursorNormalizedPosition() const
 	return Vec2(normalizedX, normalizedY);
 }
 
+
+Vec2 InputSystem::GetCursorOnScreenPosition(Vec2 cameraSize) const
+{
+	IntVec2 windowSize = g_theWindow->GetClientDimensions();
+	Vec2 mousePos = GetCursorClientPosition();
+	mousePos.y = (float)windowSize.y - mousePos.y;
+
+	Vec2 screenMousePos;
+	screenMousePos.x = mousePos.x * (cameraSize.x / (float)windowSize.x);
+	screenMousePos.y = mousePos.y * (cameraSize.y / (float)windowSize.y);
+
+	return screenMousePos;
+}
 
 bool InputSystem::Event_KeyPressed(EventArgs& args)
 {

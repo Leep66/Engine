@@ -1,6 +1,8 @@
 #pragma once
 #include "Engine/Math/Vec2.hpp"
 #include "Engine/Math/Vec3.hpp"
+#include "Engine/Math/AABB2.hpp"
+#include <vector>
 
 struct Vec2;
 struct Vec3;
@@ -79,9 +81,11 @@ enum class BillboardType
 	COUNT
 };
 
+
 float ConvertDegreesToRadians(float degrees);
 float ConvertRadiansToDegrees(float radians);
 float CosDegrees(float degrees);
+float ACosDegrees(float degrees);
 float SinDegrees(float degrees);
 float Atan2Degrees(float y, float x);
 float GetShortestAngularDispDegrees(float startDegrees, float endDegrees);
@@ -89,12 +93,16 @@ float GetTurnedTowardDegrees(float currentDegrees, float goalDegrees, float maxD
 
 
 float GetDistance2D(Vec2 const& positionA, Vec2 const& positionB);
+float GetDistance2D(IntVec2 const& positionA, IntVec2 const& positionB);
 float GetDistanceSquared2D(Vec2 const& positionA, Vec2 const& positionB);
+float GetDistanceSquared2D(IntVec2 const& positionA, IntVec2 const& positionB);
 float GetDistance3D(Vec3 const& positionA, Vec3 const& positionB);
 float GetDistanceSquared3D(Vec3 const& positionA, Vec3 const& positionB);
 float GetDistanceXY3D(Vec3 const& positionA, Vec3 const& positionB);
+
 float GetDistanceXYSquared3D(Vec3 const& positionA, Vec3 const& positionB);
 
+Vec4 Lerp(const Vec4& a, const Vec4& b, float t);
 
 
 void TransformPosition2D(Vec2& posToTransform, float uniformScale, float rotationDegrees, Vec2 const& translation);
@@ -124,6 +132,9 @@ bool DoDiscsOverlap(Vec2 const& centerA, float radiusA, Vec2 const& centerB, flo
 bool DoDiscAndAABBOverlap2D(Vec2 const& center, float radiusA, AABB2 bounds);
 bool DoDiscAndOBBOverlap2D(Vec2 const& discCenter, float radius, OBB2 obb);
 bool DoDiscAndCapsuleOverlap2D(Vec2 const& discCenter, float radius, Capsule2 capsule);
+
+bool DoAABBsOverlap2D(AABB2 const& a, AABB2 const& b);
+
 
 bool DoSpheresOverlap(Vec3 const& centerA, float radiusA, Vec3 const& centerB, float radiusB);
 
@@ -240,5 +251,85 @@ RaycastResult3D RaycastVsSphere3D(Vec3 rayStart, Vec3 rayForwardNormal, float ra
 RaycastResult3D RaycastVsCylinderZ3D(Vec3 rayStart, Vec3 rayForwardNormal, float rayLength, Vec2 const& centerXY, FloatRange const& minMaxZ, float radiusXY);
 RaycastResult3D RaycastVsOBB3D(Vec3 rayStart, Vec3 rayForwardNormal, float rayLength, Vec3 const& obbI, Vec3 const& obbJ, Vec3 const& obbK, Vec3 const& obbHalfDimensions, Vec3 const& obbCenter);
 RaycastResult3D RaycastVsPlane3D(Vec3 rayStart, Vec3 rayForwardNormal, float rayLength, Vec3 const& planeNormal, float planeDistFromOrigin);
+
+
 float ComputeCubicBezier1D(float A, float B, float C, float D, float t);
 float ComputeQuinticBezier1D(float A, float B, float C, float D, float E, float F, float t);
+
+Disc2 DiscFromTwoPoints(Vec2 const& a, Vec2 const& b);
+
+Disc2 DiscFromThreePoints(Vec2 const& a, Vec2 const& b, Vec2 const& c);
+bool IsPointInDisc(Disc2 const& disc, Vec2 const& p);
+
+float Identity(float t);
+
+float SmoothStart2(float t);
+float SmoothStart3(float t);
+float SmoothStart4(float t);
+float SmoothStart5(float t);
+float SmoothStart6(float t);
+
+float SmoothStop2(float t);
+
+float SmoothStop3(float t);
+
+float SmoothStop4(float t);
+
+float SmoothStop5(float t);
+
+float SmoothStop6(float t);
+
+float SmoothStep3(float t);
+
+
+float SmoothStep5(float t);
+float Hesitate3(float t);
+
+
+float Hesitate5(float t);
+
+template <typename T>
+constexpr T Min(const T& a, const T& b) {
+	return (a < b) ? a : b;
+}
+
+template <typename T>
+constexpr T Max(const T& a, const T& b) {
+	return (a > b) ? a : b;
+}
+
+template <typename T>
+constexpr T Sqrt(T x) 
+{
+	if (x < 0) return T(0); 
+	if (x == 0 || x == 1) return x;
+
+	T guess = x;
+	T last = T(0);
+
+	while (guess != last) {
+		last = guess;
+		guess = (guess + x / guess) / T(2);
+	}
+	return guess;
+}
+bool LexLess(Vec2 const& a, Vec2 const& b);
+
+
+float GetOverlapLength(float aMin, float aMax, float bMin, float bMax);
+
+float ClampFloat(float v, float mn, float mx);
+
+bool AABBContainsAABB(AABB2 const& outer, AABB2 const& inner);
+
+struct BSPNode
+{
+	AABB2 bounds;
+	BSPNode* a = nullptr;
+	BSPNode* b = nullptr;
+};
+
+void DeleteBSP(BSPNode* n);
+
+void SplitBSP(BSPNode* n, float minLeafW, float minLeafH, int depthLeft);
+void CollectLeaves(BSPNode* n, std::vector<AABB2>& out);

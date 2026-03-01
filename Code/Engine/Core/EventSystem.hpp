@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <mutex>
 
 
 class NamedStrings;
@@ -60,6 +61,7 @@ public:
 private:
 	EventSystemConfig							m_config;
 	std::map<std::string, SubscriptionList, cmpCaseInsensitive> m_subscriptionListsByEventName;
+	mutable std::recursive_mutex m_eventMutex;
 };
 
 

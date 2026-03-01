@@ -2,6 +2,7 @@
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include "Engine/Core/StringUtils.hpp"
 #include "Engine/Math/MathUtils.hpp"
+#include "Engine/Math/Vec4.hpp"
 
 const Rgba8 Rgba8::RED = Rgba8(255, 0, 0, 255);
 const Rgba8 Rgba8::GREEN = Rgba8(0, 255, 0, 255);
@@ -45,6 +46,16 @@ Rgba8 Rgba8::ScaleColor(Rgba8 color, float rgbFactor, float aFactor)
 	);
 }
 
+Vec4 Rgba8::ToVec4()
+{
+	return Vec4(
+		r / 255.0f,
+		g / 255.0f,
+		b / 255.0f,
+		a / 255.0f
+	);
+}
+
 Rgba8 Interpolate(Rgba8 startColor, Rgba8 endColor, float fractionOfEnd)
 {
 	Rgba8 blendedColor;
@@ -85,6 +96,14 @@ void Rgba8::GetAsFloats(float* colorAsFloats) const
 	colorAsFloats[1] = static_cast<float>(g) / 255.0f;
 	colorAsFloats[2] = static_cast<float>(b) / 255.0f;
 	colorAsFloats[3] = static_cast<float>(a) / 255.0f;
+}
+
+bool Rgba8::operator!=(Rgba8 const& compare) const
+{
+	return (this->r != compare.r)
+		|| (this->g != compare.g)
+		|| (this->b != compare.b)
+		|| (this->a != compare.a);
 }
 
 bool Rgba8::operator==(Rgba8 const& compare) const

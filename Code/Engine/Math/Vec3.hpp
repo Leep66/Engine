@@ -40,7 +40,7 @@ public:
 	EulerAngles GetAsEulerAngles() const;
 
 	Rgba8 ToRgba();
-
+	void Normalize();
 
 	static Vec3 const MakeFromPolarDegrees(float orientationDegrees, float zDegrees, float length = 1.f);
 

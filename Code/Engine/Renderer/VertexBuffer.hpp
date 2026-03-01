@@ -19,7 +19,7 @@ public:
 	unsigned int GetSize() const;
 	unsigned int GetStride() const;
 
-private:
+public:
 	ID3D11Device* m_device = nullptr;
 	ID3D11Buffer* m_buffer = nullptr;
 	unsigned int m_physicalRadius = 0;

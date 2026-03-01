@@ -16,6 +16,9 @@ Renderer* s_theRenderer = nullptr;
 
 namespace
 {
+
+	std::recursive_mutex s_debugRenderMutex;
+
 	struct DebugObject
 	{
 		Rgba8 m_startColor = Rgba8::WHITE;
@@ -30,6 +33,9 @@ namespace
 		Vec3 m_origin;
 
 		std::vector<Vertex_PCU> m_verts;
+		Texture* m_tex = nullptr;
+
+		bool m_singleFrame = false;
 	};
 
 
@@ -47,6 +53,7 @@ namespace
 	std::vector<DebugObject> s_screenMessages;
 
 	Clock* s_debugRenderClock = new Clock();
+
 
 }
 
@@ -107,6 +114,16 @@ void DebugRenderSetHidden()
 	s_isVisible = false;
 }
 
+void ToggleDebugRenderMode()
+{
+	s_isVisible = !s_isVisible;
+}
+
+bool IsDebugRender()
+{
+	return s_isVisible;
+}
+
 void DebugRenderClear()
 {
 	s_debugObjects.clear();
@@ -118,103 +135,143 @@ void DebugRenderClear()
 
 void DebugRenderBeginFrame()
 {
-	for (int i = 0; i < (int)s_debugObjects.size(); ++i)
+	std::scoped_lock lock(s_debugRenderMutex);
+
+	for (DebugObject& obj : s_debugObjects)
 	{
-		DebugObject& obj = s_debugObjects[i];
+		if (obj.m_singleFrame) continue;
+		if (!obj.m_timer) continue;
 
-		if (!obj.m_timer)
-		{
-			continue;
-		}
-
-		float duration = obj.m_timer->GetElapsedTime();
-		float durationFraction = obj.m_timer->GetElapsedFraction();
+		float elapsedFraction = obj.m_timer->GetElapsedFraction();
 
 		if (obj.m_duration > 0.f)
 		{
 			Rgba8 newColor;
-			newColor.r = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.r, obj.m_endColor.r);
-			newColor.g = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.g, obj.m_endColor.g);
-			newColor.b = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.b, obj.m_endColor.b);
-			newColor.a = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.a, obj.m_endColor.a);
+			newColor.r = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.r, obj.m_endColor.r);
+			newColor.g = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.g, obj.m_endColor.g);
+			newColor.b = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.b, obj.m_endColor.b);
+			newColor.a = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.a, obj.m_endColor.a);
 
-			for (Vertex_PCU& vert : s_debugObjects[i].m_verts)
+			for (Vertex_PCU& vert : obj.m_verts)
 			{
 				vert.m_color = newColor;
 			}
 		}
-
-		if (obj.m_duration > 0.f && duration >= obj.m_duration)
-		{
-			delete obj.m_timer;
-			obj.m_timer = nullptr;
-			s_debugObjects.erase(s_debugObjects.begin() + i);
-			--i;
-		}
 	}
 
-	for (int i = 0; i < (int)s_worldBillboardTexts.size(); ++i)
+	s_debugObjects.erase(
+		std::remove_if(
+			s_debugObjects.begin(),
+			s_debugObjects.end(),
+			[](DebugObject& obj)
+			{
+				if (obj.m_singleFrame) return true;
+				if (obj.m_timer && obj.m_duration > 0.f && obj.m_timer->GetElapsedTime() >= obj.m_duration)
+				{
+					delete obj.m_timer;
+					obj.m_timer = nullptr;
+					return true;
+				}
+				return false;
+			}
+		),
+		s_debugObjects.end()
+	);
+
+	for (DebugObject& obj : s_worldBillboardTexts)
 	{
-		DebugObject& obj = s_worldBillboardTexts[i];
+		if (obj.m_singleFrame) continue;
+		if (!obj.m_timer) continue;
 
-		if (!obj.m_timer)
-		{
-			continue;
-		}
-
-		float duration = obj.m_timer->GetElapsedTime();
-		float durationFraction = obj.m_timer->GetElapsedFraction();
+		float elapsedFraction = obj.m_timer->GetElapsedFraction();
 
 		if (obj.m_duration > 0.f)
 		{
 			Rgba8 newColor;
-			newColor.r = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.r, obj.m_endColor.r);
-			newColor.g = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.g, obj.m_endColor.g);
-			newColor.b = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.b, obj.m_endColor.b);
-			newColor.a = (unsigned char)RangeMapClamped(durationFraction, 0.f, 1.f, obj.m_startColor.a, obj.m_endColor.a);
+			newColor.r = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.r, obj.m_endColor.r);
+			newColor.g = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.g, obj.m_endColor.g);
+			newColor.b = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.b, obj.m_endColor.b);
+			newColor.a = (unsigned char)RangeMapClamped(elapsedFraction, 0.f, 1.f, obj.m_startColor.a, obj.m_endColor.a);
 
-			for (Vertex_PCU& vert : s_worldBillboardTexts[i].m_verts)
+			for (Vertex_PCU& vert : obj.m_verts)
 			{
 				vert.m_color = newColor;
 			}
 		}
-
-		if (obj.m_duration > 0.f && duration >= obj.m_duration)
-		{
-			delete obj.m_timer;
-			obj.m_timer = nullptr;
-			s_worldBillboardTexts.erase(s_worldBillboardTexts.begin() + i);
-			--i;
-		}
 	}
+
+	s_worldBillboardTexts.erase(
+		std::remove_if(
+			s_worldBillboardTexts.begin(),
+			s_worldBillboardTexts.end(),
+			[](DebugObject& obj)
+			{
+				if (obj.m_singleFrame) return true;
+				if (obj.m_timer && obj.m_duration > 0.f && obj.m_timer->GetElapsedTime() >= obj.m_duration)
+				{
+					delete obj.m_timer;
+					obj.m_timer = nullptr;
+					return true;
+				}
+				return false;
+			}
+		),
+		s_worldBillboardTexts.end()
+	);
 
 	s_screenDebugTexts.clear();
 
-	for (int i = 0; i < (int)s_screenMessages.size(); ++i)
+	for (DebugObject& obj : s_screenMessages)
 	{
-		DebugObject& obj = s_screenMessages[i];
-
-		if (!obj.m_timer)
-		{
-			continue;
-		}
-
-		float duration = obj.m_timer->GetElapsedTime();
-
-		if (obj.m_duration > 0.f && duration >= obj.m_duration)
-		{
-			delete obj.m_timer;
-			obj.m_timer = nullptr;
-
-			s_screenMessages.erase(s_screenMessages.begin() + i);
-
-			--i;
-		}
+		if (obj.m_singleFrame) continue;
+		if (!obj.m_timer) continue;
 	}
+
+	s_screenMessages.erase(
+		std::remove_if(
+			s_screenMessages.begin(),
+			s_screenMessages.end(),
+			[](DebugObject& obj)
+			{
+				if (obj.m_singleFrame) return true;
+				if (obj.m_timer && obj.m_duration > 0.f && obj.m_timer->GetElapsedTime() >= obj.m_duration)
+				{
+					delete obj.m_timer;
+					obj.m_timer = nullptr;
+					return true;
+				}
+				return false;
+			}
+		),
+		s_screenMessages.end()
+	);
+
+	s_worldDebugTexts.erase(
+		std::remove_if(
+			s_worldDebugTexts.begin(),
+			s_worldDebugTexts.end(),
+			[](DebugObject& obj)
+			{
+				if (obj.m_singleFrame) return true;
+				if (obj.m_timer && obj.m_duration > 0.f && obj.m_timer->GetElapsedTime() >= obj.m_duration)
+				{
+					delete obj.m_timer;
+					obj.m_timer = nullptr;
+					return true;
+				}
+				return false;
+			}
+		),
+		s_worldDebugTexts.end()
+	);
 }
+
+
 
 void DebugRenderWorld(const Camera& camera)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
+
 	if (s_isVisible)
 	{
 		s_theRenderer->BeginCamera(camera);
@@ -230,6 +287,8 @@ void DebugRenderWorld(const Camera& camera)
 
 void DebugRenderScreen(const Camera& camera)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
+
 	if (s_isVisible)
 	{
 		s_theRenderer->BeginCamera(camera);
@@ -246,7 +305,7 @@ void DebugRenderScreen(const Camera& camera)
 		}
 
 		const float verticalSpacing = 15.f;
-		const float screenHeight = 750.f;
+		const float screenHeight = g_gameConfigBlackboard.GetValue("screenHeight", 800.f) * 0.95f;
 
 		float currentY = screenHeight - verticalSpacing;
 
@@ -280,10 +339,12 @@ void DebugRenderScreen(const Camera& camera)
 
 void DebugRenderEndFrame()
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 }
 
 void DebugRenderWorldObjects()
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	for (int i = 0; i < (int)s_debugObjects.size(); ++i)
 	{
 		DebugObject& obj = s_debugObjects[i];
@@ -323,13 +384,14 @@ void DebugRenderWorldObjects()
 		}
 		s_theRenderer->SetRasterizerMode(obj.m_rasterizerMode);
 
-		s_theRenderer->BindTexture(nullptr);
+		s_theRenderer->BindTexture(obj.m_tex);
 		s_theRenderer->DrawVertexArray(s_debugObjects[i].m_verts);
 	}
 }
 
 void DebugRenderWorldTexts()
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	for (int i = 0; i < (int)s_worldDebugTexts.size(); ++i)
 	{
 		DebugObject& text = s_worldDebugTexts[i];
@@ -368,7 +430,6 @@ void DebugRenderWorldTexts()
 			s_theRenderer->SetBlendMode(BlendMode::Blend_OPAQUE);
 			s_theRenderer->SetDepthMode(DepthMode::READ_WRITE_LESS_EQUAL);
 		}
-
 		s_theRenderer->SetRasterizerMode(text.m_rasterizerMode);
 		s_theRenderer->BindTexture(&s_theFont->GetTexture());
 		s_theRenderer->DrawVertexArray(s_worldDebugTexts[i].m_verts);
@@ -377,8 +438,38 @@ void DebugRenderWorldTexts()
 
 }
 
+void DebugRenderWorld2D(const Camera& camera)
+{
+	std::scoped_lock lock(s_debugRenderMutex);
+
+	s_theRenderer->BeginCamera(camera);
+
+	s_theRenderer->SetDepthMode(DepthMode::DISABLED);
+	s_theRenderer->SetRasterizerMode(RasterizerMode::SOLID_CULL_NONE);
+	s_theRenderer->SetBlendMode(BlendMode::ALPHA);
+
+	DebugRenderWorldObjects();
+
+	if (s_theFont)
+	{
+		s_theRenderer->BindTexture(&s_theFont->GetTexture());
+
+		for (const DebugObject& text : s_worldDebugTexts)
+		{
+			s_theRenderer->DrawVertexArray((int)text.m_verts.size(), text.m_verts.data());
+		}
+
+		s_theRenderer->BindTexture(nullptr);
+	}
+
+	s_theRenderer->EndCamera(camera);
+
+	s_worldDebugTexts.clear();
+}
+
 void DebugRenderWorldBillboardTexts(const Camera& camera)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	Mat44 cameraMatrix = camera.GetCameraToWorldTransform();
 
 	for (int i = 0; i < (int)s_worldBillboardTexts.size(); ++i)
@@ -441,6 +532,7 @@ void DebugRenderWorldBillboardTexts(const Camera& camera)
 
 void DebugAddRaycastResult(RaycastResult3D result, float radius, float duration, const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	Vec3 resultEnd = result.m_rayStart + result.m_rayForwardNormal * result.m_rayMaxLength;
 	DebugAddWorldLine(result.m_rayStart, resultEnd, radius, duration, startColor, endColor, mode);
 
@@ -455,8 +547,11 @@ void DebugAddRaycastResult(RaycastResult3D result, float radius, float duration,
 }
 
 
-void DebugAddWorldWireAABB3(AABB3 box, float duration, const Rgba8& startColor /*= Rgba8::WHITE*/, const Rgba8& endColor /*= Rgba8::WHITE*/, DebugRenderMode mode /*= DebugRenderMode::USE_DEPTH*/)
+void DebugAddWorldWireAABB3(AABB3 box, float duration,
+	const Rgba8& startColor, const Rgba8& endColor,
+	DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> aabbVerts;
 
 	AddVertsForAABBWireframe3D(aabbVerts, box, 0.01f, startColor);
@@ -464,18 +559,39 @@ void DebugAddWorldWireAABB3(AABB3 box, float duration, const Rgba8& startColor /
 	DebugObject aabb;
 	aabb.m_startColor = startColor;
 	aabb.m_endColor = endColor;
-	aabb.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
 	aabb.m_mode = mode;
-	aabb.m_timer = new Timer(duration, s_debugRenderClock);
-	aabb.m_timer->Start();
 	aabb.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
 	aabb.m_verts = aabbVerts;
+
+	if (duration == 0.f)
+	{
+		aabb.m_singleFrame = true;
+		aabb.m_duration = 0.f;
+		aabb.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		aabb.m_singleFrame = false;
+		aabb.m_duration = duration;
+		aabb.m_timer = new Timer(duration, s_debugRenderClock);
+		aabb.m_timer->Start();
+	}
+	else
+	{
+		aabb.m_singleFrame = false;
+		aabb.m_duration = -1.f;
+		aabb.m_timer = nullptr;
+	}
 
 	s_debugObjects.push_back(aabb);
 }
 
-void DebugAddWorldPoint(const Vec3& pos, float radius, float duration, const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
+
+void DebugAddWorldPoint(const Vec3& pos, float radius, float duration,
+	const Rgba8& startColor, const Rgba8& endColor,
+	DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> pointVerts;
 
 	AddVertsForSphere3D(pointVerts, pos, radius, startColor);
@@ -483,20 +599,38 @@ void DebugAddWorldPoint(const Vec3& pos, float radius, float duration, const Rgb
 	DebugObject point;
 	point.m_startColor = startColor;
 	point.m_endColor = endColor;
-	point.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
 	point.m_mode = mode;
-	point.m_timer = new Timer(duration, s_debugRenderClock);
-	point.m_timer->Start();
 	point.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
 	point.m_verts = pointVerts;
 
+	if (duration == 0.f)
+	{
+		point.m_singleFrame = true;
+		point.m_duration = 0.f;
+		point.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		point.m_singleFrame = false;
+		point.m_duration = duration;
+		point.m_timer = new Timer(duration, s_debugRenderClock);
+		point.m_timer->Start();
+	}
+	else
+	{
+		point.m_singleFrame = false;
+		point.m_duration = -1.f;
+		point.m_timer = nullptr;
+	}
+
 	s_debugObjects.push_back(point);
-
-
 }
 
-void DebugAddWorldLine(const Vec3& start, const Vec3& end, float radius, float duration, const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
+
+void DebugAddWorldLine(const Vec3& start, const Vec3& end, float radius, float duration,
+	const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> lineVerts;
 
 	AddVertsForCylinder3D(lineVerts, start, end, radius, startColor, AABB2::ZERO_TO_ONE, 16);
@@ -504,20 +638,38 @@ void DebugAddWorldLine(const Vec3& start, const Vec3& end, float radius, float d
 	DebugObject line;
 	line.m_startColor = startColor;
 	line.m_endColor = endColor;
-	line.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
-
 	line.m_mode = mode;
-	line.m_timer = new Timer(duration, s_debugRenderClock);
-	line.m_timer->Start();
 	line.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
 	line.m_verts = lineVerts;
 
+	if (duration == 0.f)
+	{
+		line.m_singleFrame = true;
+		line.m_duration = 0.f;
+		line.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		line.m_singleFrame = false;
+		line.m_duration = duration;
+		line.m_timer = new Timer(duration, s_debugRenderClock);
+		line.m_timer->Start();
+	}
+	else
+	{
+		line.m_singleFrame = false;
+		line.m_duration = -1.f;
+		line.m_timer = nullptr;
+	}
+
 	s_debugObjects.push_back(line);
-	
 }
 
-void DebugAddWorldWireCylinder(const Vec3& base, const Vec3& top, float radius, float duration, const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
+
+void DebugAddWorldWireCylinder(const Vec3& base, const Vec3& top, float radius, float duration,
+	const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> cylinderVerts;
 
 	AddVertsForCylinder3D(cylinderVerts, base, top, radius, startColor);
@@ -525,56 +677,96 @@ void DebugAddWorldWireCylinder(const Vec3& base, const Vec3& top, float radius, 
 	DebugObject cylinder;
 	cylinder.m_startColor = startColor;
 	cylinder.m_endColor = endColor;
-	cylinder.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
 	cylinder.m_mode = mode;
-	cylinder.m_timer = new Timer(duration, s_debugRenderClock);
-	cylinder.m_timer->Start();
 	cylinder.m_rasterizerMode = RasterizerMode::WIREFRAME_CULL_BACK;
 	cylinder.m_verts = cylinderVerts;
+
+	if (duration == 0.f)
+	{
+		cylinder.m_singleFrame = true;
+		cylinder.m_duration = 0.f;
+		cylinder.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		cylinder.m_singleFrame = false;
+		cylinder.m_duration = duration;
+		cylinder.m_timer = new Timer(duration, s_debugRenderClock);
+		cylinder.m_timer->Start();
+	}
+	else
+	{
+		cylinder.m_singleFrame = false;
+		cylinder.m_duration = -1.f;
+		cylinder.m_timer = nullptr;
+	}
 
 	s_debugObjects.push_back(cylinder);
 }
 
-void DebugAddWorldWireSphere(const Vec3& center, float radius, float duration,
-	const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
-{
-	std::vector<Vertex_PCU> sphereVerts;
-	
-	AddVertsForUVSphereZWireframe3D(sphereVerts, center, radius, 8, 0.01f, startColor);
 
+void DebugAddWorldWireSphere(const Vec3& center, float radius, float duration,
+	const Rgba8& startColor, const Rgba8& endColor,
+	DebugRenderMode mode)
+{
+	std::scoped_lock lock(s_debugRenderMutex);
+	std::vector<Vertex_PCU> sphereVerts;
+
+	AddVertsForUVSphereZWireframe3D(sphereVerts, center, radius, 8, 0.01f, startColor);
 
 	DebugObject sphere;
 	sphere.m_startColor = startColor;
 	sphere.m_endColor = endColor;
-	sphere.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
 	sphere.m_mode = mode;
-	sphere.m_timer = new Timer(duration, s_debugRenderClock);
-	sphere.m_timer->Start();
 	sphere.m_rasterizerMode = RasterizerMode::WIREFRAME_CULL_BACK;
 	sphere.m_verts = sphereVerts;
+
+	if (duration == 0.f)
+	{
+		sphere.m_singleFrame = true;
+		sphere.m_duration = 0.f;
+		sphere.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		sphere.m_singleFrame = false;
+		sphere.m_duration = duration;
+		sphere.m_timer = new Timer(duration, s_debugRenderClock);
+		sphere.m_timer->Start();
+	}
+	else
+	{
+		sphere.m_singleFrame = false;
+		sphere.m_duration = -1.f;
+		sphere.m_timer = nullptr;
+	}
 
 	s_debugObjects.push_back(sphere);
 }
 
-void DebugAddWorldArrow(const Vec3& start, const Vec3& end, float radius, float duration, const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
+
+void DebugAddWorldArrow(const Vec3& start, const Vec3& end, float radius, float duration,
+	const Rgba8& startColor, const Rgba8& endColor,
+	DebugRenderMode mode)
 {
-	Vec3 direction = (end - start).GetNormalized();
+	std::scoped_lock lock(s_debugRenderMutex);
+	Vec3  direction = (end - start).GetNormalized();
 	float arrowLength = (end - start).GetLength();
 
 	float shaftLength = arrowLength * 0.7f;
-	Vec3 shaftEnd = start + direction * shaftLength;
-
-	Vec3 headEnd = end;
+	Vec3  shaftEnd = start + direction * shaftLength;
+	Vec3  headEnd = end;
 
 	float shaftRadius = radius;
-
 	float headRadius = radius * 1.5f;
 
 	std::vector<Vertex_PCU> shaftVerts;
-	AddVertsForCylinder3D(shaftVerts, start, shaftEnd, shaftRadius, startColor, AABB2(Vec2(0.0f, 0.0f), Vec2(1.0f, 1.0f)), 16);
+	AddVertsForCylinder3D(shaftVerts, start, shaftEnd, shaftRadius, startColor,
+		AABB2(Vec2(0.0f, 0.0f), Vec2(1.0f, 1.0f)), 16);
 
 	std::vector<Vertex_PCU> headVerts;
-	AddVertsForCone3D(headVerts, shaftEnd, headEnd, headRadius, endColor, AABB2(Vec2(0.0f, 0.0f), Vec2(1.0f, 1.0f)), 16);
+	AddVertsForCone3D(headVerts, shaftEnd, headEnd, headRadius, endColor,
+		AABB2(Vec2(0.0f, 0.0f), Vec2(1.0f, 1.0f)), 16);
 
 	std::vector<Vertex_PCU> arrowVerts;
 	arrowVerts.insert(arrowVerts.end(), shaftVerts.begin(), shaftVerts.end());
@@ -583,68 +775,130 @@ void DebugAddWorldArrow(const Vec3& start, const Vec3& end, float radius, float 
 	DebugObject arrow;
 	arrow.m_startColor = startColor;
 	arrow.m_endColor = endColor;
-	arrow.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
 	arrow.m_mode = mode;
-	arrow.m_timer = new Timer(duration, s_debugRenderClock);
-	arrow.m_timer->Start();
 	arrow.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
 	arrow.m_verts = arrowVerts;
+
+	if (duration == 0.f)
+	{
+		arrow.m_singleFrame = true;
+		arrow.m_duration = 0.f;
+		arrow.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		arrow.m_singleFrame = false;
+		arrow.m_duration = duration;
+		arrow.m_timer = new Timer(duration, s_debugRenderClock);
+		arrow.m_timer->Start();
+	}
+	else
+	{
+		arrow.m_singleFrame = false;
+		arrow.m_duration = -1.f;
+		arrow.m_timer = nullptr;
+	}
 
 	s_debugObjects.push_back(arrow);
 }
 
-void DebugAddWorldText(const std::string& text, const Mat44& transform, float textHeight, float alignment, float duration, const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode)
+
+void DebugAddWorldText(const std::string& text, const Mat44& transform, float textHeight,
+	float alignment, float duration, const Rgba8& startColor,
+	const Rgba8& endColor, DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> textVerts;
-	s_theFont->AddVertsForText3DAtOriginXForward(textVerts, textHeight, text, startColor, 1.f, Vec2(alignment, alignment));
+	s_theFont->AddVertsForText3DAtOriginXForward(textVerts, textHeight, text,
+		startColor, 1.f, Vec2(alignment, alignment));
 
 	for (Vertex_PCU& vertex : textVerts)
-	{
 		vertex.m_position = transform.TransformPosition3D(vertex.m_position);
+
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_mode = mode;
+	obj.m_rasterizerMode = RasterizerMode::SOLID_CULL_NONE;
+	obj.m_verts = textVerts;
+
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
 	}
-	
-	DebugObject textObject;
-	textObject.m_startColor = startColor;
-	textObject.m_endColor = endColor;
-	textObject.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
-	textObject.m_mode = mode;
-	textObject.m_timer = new Timer(duration, s_debugRenderClock);
-	textObject.m_timer->Start();
-	textObject.m_rasterizerMode = RasterizerMode::SOLID_CULL_NONE;
-	textObject.m_verts = textVerts;
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
 
-	s_worldDebugTexts.push_back(textObject);
+	s_worldDebugTexts.push_back(obj);
 }
 
-void DebugAddWorldBillboardText(const std::string& text, const Vec3& origin, float textHeight, const Vec2& alignment, float duration, const Rgba8& startColor, const Rgba8& endColor, DebugRenderMode mode, BillboardType type)
+
+void DebugAddWorldBillboardText(const std::string& text, const Vec3& origin,
+	float textHeight, const Vec2& alignment,
+	float duration, const Rgba8& startColor,
+	const Rgba8& endColor, DebugRenderMode mode,
+	BillboardType type)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> textVerts;
-	s_theFont->AddVertsForText3DAtOriginXForward(textVerts, textHeight, text, startColor, 1.f, alignment);
+	s_theFont->AddVertsForText3DAtOriginXForward(textVerts, textHeight, text,
+		startColor, 1.f, alignment);
 
-	DebugObject textObject;
-	textObject.m_startColor = startColor;
-	textObject.m_endColor = endColor;
-	textObject.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
-	textObject.m_mode = mode;
-	textObject.m_timer = new Timer(duration, s_debugRenderClock);
-	textObject.m_timer->Start();
-	textObject.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
-	textObject.m_type = type;
-	textObject.m_origin = origin;
-	textObject.m_verts = textVerts;
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_mode = mode;
+	obj.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
+	obj.m_origin = origin;
+	obj.m_type = type;
+	obj.m_verts = textVerts;
 
-	s_worldBillboardTexts.push_back(textObject);
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
+
+	s_worldBillboardTexts.push_back(obj);
 }
+
 
 
 void DebugAddWorldBasis(const Mat44& transform, float duration, DebugRenderMode mode)
 {
 	Vec3 pos = transform.GetTranslation3D();
-	Vec3 fwd = transform.GetIBasis3D(); 
-	Vec3 left = transform.GetJBasis3D(); 
-	Vec3 up = transform.GetKBasis3D(); 
+	Vec3 fwd = transform.GetIBasis3D();
+	Vec3 left = transform.GetJBasis3D();
+	Vec3 up = transform.GetKBasis3D();
 
-	Vec3 xEnd = pos + fwd;  
+	Vec3 xEnd = pos + fwd;
 	Vec3 yEnd = pos + left;
 	Vec3 zEnd = pos + up;
 
@@ -653,83 +907,296 @@ void DebugAddWorldBasis(const Mat44& transform, float duration, DebugRenderMode 
 	DebugAddWorldArrow(pos, zEnd, 0.1f, duration, Rgba8::BLUE, Rgba8::BLUE, mode);
 }
 
-void DebugAddWorldCone(const Vec3& discCenter, const Vec3& tipPos, float radius, float duration, const Rgba8& startColor /*= Rgba8::WHITE*/, const Rgba8& endColor /*= Rgba8::WHITE*/, DebugRenderMode mode /*= DebugRenderMode::USE_DEPTH*/)
+
+void DebugAddWorldCone(const Vec3& discCenter, const Vec3& tipPos, float radius,
+	float duration, const Rgba8& startColor, const Rgba8& endColor,
+	DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> coneVerts;
 
 	AddVertsForCone3D(coneVerts, discCenter, tipPos, radius, startColor);
 
-	DebugObject cone;
-	cone.m_startColor = startColor;
-	cone.m_endColor = endColor;
-	cone.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
-	cone.m_mode = mode;
-	cone.m_timer = new Timer(duration, s_debugRenderClock);
-	cone.m_timer->Start();
-	cone.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
-	cone.m_verts = coneVerts;
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_mode = mode;
+	obj.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
+	obj.m_verts = coneVerts;
 
-	s_debugObjects.push_back(cone);
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
+
+	s_debugObjects.push_back(obj);
 }
 
-void DebugAddWorldWireCone(const Vec3& discCenter, const Vec3& tipPos, float radius, float duration, const Rgba8& startColor /*= Rgba8::WHITE*/, const Rgba8& endColor /*= Rgba8::WHITE*/, DebugRenderMode mode /*= DebugRenderMode::USE_DEPTH */)
+
+void DebugAddWorldWireCone(const Vec3& discCenter, const Vec3& tipPos, float radius,
+	float duration, const Rgba8& startColor, const Rgba8& endColor,
+	DebugRenderMode mode)
 {
+	std::scoped_lock lock(s_debugRenderMutex);
 	std::vector<Vertex_PCU> coneVerts;
 
 	AddVertsForCone3D(coneVerts, discCenter, tipPos, radius, startColor);
 
-	DebugObject cone;
-	cone.m_startColor = startColor;
-	cone.m_endColor = endColor;
-	cone.m_duration = (duration == 0.f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
-	cone.m_mode = mode;
-	cone.m_timer = new Timer(duration, s_debugRenderClock);
-	cone.m_timer->Start();
-	cone.m_rasterizerMode = RasterizerMode::WIREFRAME_CULL_BACK;
-	cone.m_verts = coneVerts;
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_mode = mode;
+	obj.m_rasterizerMode = RasterizerMode::WIREFRAME_CULL_BACK;
+	obj.m_verts = coneVerts;
 
-	s_debugObjects.push_back(cone);
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
+
+	s_debugObjects.push_back(obj);
 }
 
-void DebugAddScreenText(const std::string& text, const AABB2& box, float cellHeight, const Vec2& alignment, float duration, const Rgba8& startColor, const Rgba8& endColor)
+
+void DebugAddScreenText(const std::string& text, const AABB2& box, float cellHeight,
+	const Vec2& alignment, float duration,
+	const Rgba8& startColor, const Rgba8& endColor)
 {
-	std::vector<Vertex_PCU> textVerts;
-	s_theFont->AddVertsForTextInBox2D(textVerts, text, box, cellHeight, startColor, 1.f, alignment, TextBoxMode::OVERRUN);
+	std::scoped_lock lock(s_debugRenderMutex);
+	std::vector<Vertex_PCU> verts;
+	s_theFont->AddVertsForTextInBox2D(verts, text, box, cellHeight,
+		startColor, 1.f, alignment, TextBoxMode::OVERRUN);
 
-	DebugObject textObject;
-	textObject.m_startColor = startColor;
-	textObject.m_endColor = endColor;
-	textObject.m_duration = (duration == 0.0f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
-	textObject.m_timer = new Timer(duration, s_debugRenderClock);
-	textObject.m_timer->Start();
-	textObject.m_verts = textVerts;
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_verts = verts;
 
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
 
-	s_screenDebugTexts.push_back(textObject);
+	s_screenDebugTexts.push_back(obj);
 }
 
-void DebugAddMessage(const std::string& text, float duration, const Rgba8& startColor, const Rgba8& endColor)
+
+void DebugAddScreenText(const std::string& text, const AABB2& box, float cellHeight, 
+	float cellAspectScale, const Vec2& alignment, float duration, 
+	const Rgba8& startColor /*= Rgba8::WHITE*/, const Rgba8& endColor /*= Rgba8::WHITE*/)
 {
-	std::vector<Vertex_PCU> textVerts;
+	std::scoped_lock lock(s_debugRenderMutex);
+	std::vector<Vertex_PCU> verts;
+	s_theFont->AddVertsForTextInBox2D(verts, text, box, cellHeight,
+		startColor, cellAspectScale, alignment, TextBoxMode::OVERRUN);
+
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_verts = verts;
+
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
+
+	s_screenDebugTexts.push_back(obj);
+}
+
+void DebugAddMessage(const std::string& text, float duration,
+	const Rgba8& startColor, const Rgba8& endColor)
+{
+	std::scoped_lock lock(s_debugRenderMutex);
+	std::vector<Vertex_PCU> verts;
 
 	AABB2 box(Vec2(0.f, 0.f), Vec2(300.f, 10.f));
+	s_theFont->AddVertsForTextInBox2D(verts, text, box, 15.f, startColor,
+		0.8f, Vec2(0.f, 0.5f), TextBoxMode::OVERRUN);
 
-	s_theFont->AddVertsForTextInBox2D(textVerts, text, box, 15.f, startColor, 0.8f, Vec2(0.f, 0.5f), TextBoxMode::OVERRUN);
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_verts = verts;
 
-	DebugObject textObject;
-	textObject.m_startColor = startColor;
-	textObject.m_endColor = endColor;
-	textObject.m_duration = (duration == 0.0f) ? s_debugRenderClock->GetDeltaSeconds() : duration;
-	textObject.m_timer = new Timer(duration, s_debugRenderClock);
-	textObject.m_timer->Start();
-	textObject.m_verts = textVerts;
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else 
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
 
-	s_screenMessages.push_back(textObject);
+
+	s_screenMessages.push_back(obj);
 }
 
 
 
+void DebugAddWorldText2D(const std::string& text, const Vec2& worldPos, float cellHeight, const Vec2& alignment, float duration, const Rgba8& startColor, const Rgba8& endColor)
+{
+	std::scoped_lock lock(s_debugRenderMutex);
 
+	std::vector<Vertex_PCU> verts;
+	AABB2 dummyBox(Vec2::ZERO, Vec2(1000.f, cellHeight * 2.f));
+	s_theFont->AddVertsForTextInBox2D(verts, text, dummyBox, cellHeight, startColor, 1.f, alignment, TextBoxMode::SHRINK_TO_FIT);
+
+	Vec2 textBoundsMin = Vec2(FLT_MAX, FLT_MAX);
+	Vec2 textBoundsMax = Vec2(-FLT_MAX, -FLT_MAX);
+	for (const Vertex_PCU& v : verts) {
+		textBoundsMin.x = std::min(textBoundsMin.x, v.m_position.x);
+		textBoundsMin.y = std::min(textBoundsMin.y, v.m_position.y);
+		textBoundsMax.x = std::max(textBoundsMax.x, v.m_position.x);
+		textBoundsMax.y = std::max(textBoundsMax.y, v.m_position.y);
+	}
+	Vec2 textCenter = (textBoundsMin + textBoundsMax) * 0.5f;
+	Vec2 offset = worldPos - textCenter;
+
+	for (Vertex_PCU& v : verts) {
+		v.m_position += Vec3(offset.x, offset.y, 0.f);
+	}
+
+	DebugObject obj;
+	obj.m_startColor = startColor;
+	obj.m_endColor = endColor;
+	obj.m_verts = verts;
+
+	if (duration == 0.f) {
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f) {
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else {
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
+
+	s_worldDebugTexts.push_back(obj);
+}
+
+void DebugAddWorldAABB2(const AABB2& bounds, Texture* tex, const Rgba8& tint, float duration, DebugRenderMode mode)
+{
+	std::scoped_lock lock(s_debugRenderMutex);
+
+	std::vector<Vertex_PCU> verts;
+
+	AddVertsForAABB2D(
+		verts,
+		bounds,
+		tint,
+		Vec2(0.0f, 0.0f),  // UV min
+		Vec2(1.0f, 1.0f)   // UV max
+	);
+
+	DebugObject obj;
+	obj.m_startColor = tint;
+	obj.m_endColor = tint;
+	obj.m_mode = mode;
+	obj.m_rasterizerMode = RasterizerMode::SOLID_CULL_BACK;
+	obj.m_verts = verts;
+
+	if (duration == 0.f)
+	{
+		obj.m_singleFrame = true;
+		obj.m_duration = 0.f;
+		obj.m_timer = nullptr;
+	}
+	else if (duration > 0.f)
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = duration;
+		obj.m_timer = new Timer(duration, s_debugRenderClock);
+		obj.m_timer->Start();
+	}
+	else
+	{
+		obj.m_singleFrame = false;
+		obj.m_duration = -1.f;
+		obj.m_timer = nullptr;
+	}
+
+	obj.m_tex = tex;
+
+	s_debugObjects.push_back(obj);
+}
 bool Command_DebugRenderClear(EventArgs& args)
 {
 	UNUSED(args);

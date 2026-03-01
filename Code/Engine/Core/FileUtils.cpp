@@ -1,5 +1,9 @@
 #include "Engine/Core/FileUtils.hpp"
 #include <stdio.h>
+#include <sys/stat.h> 
+#include <filesystem>
+#include "Engine/Core/EngineCommon.hpp"
+#include "Engine/Core/StringUtils.hpp"
 
 int FileReadToBuffer(std::vector<uint8_t>& outBuffer, const std::string& filename)
 {
@@ -42,3 +46,47 @@ int FileReadToString(std::string& outString, const std::string& filename)
 	outString.assign(buffer.begin(), buffer.end());
 	return bytesRead;
 }
+
+int FileWriteFromBuffer(std::vector<uint8_t>& inBuffer, const std::string& filename)
+{
+	FILE* fp = nullptr;
+	errno_t err = fopen_s(&fp, filename.c_str(), "wb");
+	if (err != 0 || fp == nullptr) 
+	{
+		return -1;
+	}
+
+	size_t elemSize = sizeof(uint8_t);
+	size_t count = inBuffer.size();
+	size_t written = fwrite(inBuffer.data(), elemSize, count, fp);
+
+	fclose(fp);
+
+	if (written != count) 
+	{
+		return -1;
+	}
+
+	return static_cast<int>(written);
+}
+
+bool FileExist(const std::string& filename)
+{
+	return std::filesystem::exists(filename);
+}
+
+bool FolderExists(const std::string& folderName)
+{
+	return std::filesystem::is_directory(folderName);
+}
+
+bool CreateFolder(const std::string& folderName)
+{
+	if (!std::filesystem::create_directory(folderName))
+	{
+		ERROR_RECOVERABLE(Stringf("Could not create folder: \"%s\"", folderName.c_str()));
+		return false;
+	}
+	return true;
+}
+

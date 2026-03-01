@@ -33,7 +33,10 @@ public:
 	void operator=(const IntVec2& copyFrom);
 	IntVec2 const operator+(IntVec2 const& vecToAdd) const;
 	IntVec2 const operator-(IntVec2 const& vecToSubtract) const;
+	IntVec2 const operator*(int scale) const;
 	bool operator==(IntVec2 const& vecToCompare) const;
 	bool operator!=(IntVec2 const& vecToCompare) const;
+	bool operator<(IntVec2 const& vecToCompare) const;
+	bool operator>(IntVec2 const& vecToCompare) const;
 	void operator+=(IntVec2 const& vecToAdd);
 };

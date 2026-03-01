@@ -7,13 +7,13 @@
 #include <vector>
 
 #define DX_SAFE_RELEASE(dxObject) { if(dxObject) { (dxObject)->Release(); (dxObject) = nullptr; } }
-#define SAFE_RELEASE(obj) { if (obj) { delete obj; obj = nullptr; } }
-
+#define SAFE_DELETE(obj) { if (obj) { delete obj; obj = nullptr; } }
 
 class Window;
 struct IntVec2;
 class VertexBuffer;
 class IndexBuffer;
+class StructuredBuffer;
 class BitmapFont;
 class Texture;
 class Shader;
@@ -26,14 +26,20 @@ struct ID3D11RasterizerState;
 struct ID3D11DepthStencilView;
 struct ID3D11Texture2D;
 struct ID3D11DepthStencilState;
+struct ID3D11Device;
+struct ID3D11DeviceContext;
+struct ID3D11ShaderResourceView;
+struct ID3D11RenderTargetView;
+
 class Image;
 struct AABB2;
 struct D3D11_VIEWPORT;
 
 enum class VertexType
 {
+	Vertex_None = -1,
 	Vertex_PCU,
-	Vertex_PCUTBN
+	Vertex_PCUTBN,
 };
 
 enum class BlendMode
@@ -41,8 +47,11 @@ enum class BlendMode
 	Blend_OPAQUE,
 	ALPHA,
 	ADDITIVE,
-	COUNT 
+	ALPHA_ADDITIVE,
+	PREMULTIPLIED_ALPHA,
+	COUNT
 };
+
 
 enum class SamplerMode
 {
@@ -92,7 +101,7 @@ struct Light
 
 struct Lights
 {
-	Vec4 m_sunColor = Vec4(1.f, 1.f, 1.f, 1.f);
+	Vec4 m_sunColor = Vec4(1.f, 1.f, 1.f, 0.5f);
 	Vec3 m_sunDirection = Vec3(2.0f, 1.0f, -1.0f);;
 	int m_numLights = 0;
 	Light m_lightsArray[MAX_LIGHTS];
@@ -125,6 +134,10 @@ public:
 	void EndFrame();
 	void Shutdown();
 
+	ID3D11Device* GetDevice() const;
+	ID3D11DeviceContext* GetDeviceContext() const;
+
+
 	void ClearScreen(const Rgba8& clearColor) const;
 	void BeginCamera(const Camera& camera) const;
 	void EndCamera(const Camera& camera) const;
@@ -132,16 +145,22 @@ public:
 	void DrawVertexArray(std::vector<Vertex_PCUTBN> const& verts);
 	void DrawVertexArray(std::vector<Vertex_PCUTBN> const& verts, std::vector<unsigned int> indexes);
 	void DrawVertexArray(int numVertexes, Vertex_PCU const* verts);
-
+	void DrawArray(int vertexCount);
 	D3D11_VIEWPORT GetViewport(ViewportData viewportData) const;
 	void SetViewport(ViewportData viewBoxs);
 
 	Image* CreateImageFromFile(char const* imageFilePath);
-	Texture* CreateTextureFromImage(const Image& image);
+	Texture* CreateTextureFromImage(const Image& image,
+									bool generateMipmaps = false,
+									int requestedMipLevels = 0);
 	Texture* GetTextureForFile(char const* imageFilePath);
-	Texture* CreateOrGetTextureFromFile(char const* imageFilePath);
-	Texture* CreateTextureFromFile(char const* imageFilePath);
+	Texture* CreateOrGetTextureFromFile(char const* imageFilePath, bool generateMipmaps = false, int requestedMipLevels = 0);
+	Texture* CreateTextureFromFile(char const* imageFilePath,
+		                           bool generateMipmaps = true,
+		                           int requestedMipLevels = 0);
+
 	Texture* CreateTextureFromData(char const* name, IntVec2 dimensions, int bytesPerTexel, uint8_t* texelData);
+
 
 	BitmapFont* CreateOrGetBitmapFont(char const* bitmapFontFilePath);
 	BitmapFont* CreateBitmapFontFromFile(char const* bitmapFontFilePath);
@@ -149,27 +168,47 @@ public:
 	void BindTexture(const Texture* texture, int slot = 0);
 	void CreateRenderingContext();
 
-	Shader* CreateShader(char const* shaderName, char const* shaderSource, VertexType vertexType = VertexType::Vertex_PCU);
+	Shader* CreateShader(char const* shaderName, char const* source, VertexType vertexType = VertexType::Vertex_PCU);
 	Shader* CreateShader(char const* shaderPath, VertexType vertexType = VertexType::Vertex_PCU);
+	Shader* CreateShader(char const* shaderPath, VertexType vertexType, char const* entryPoint);
+	Shader* CreateShaderWithEntryPoint(const char* shaderName, const char* source, VertexType vertexType, const char* vertexEntryPoint);
+	Shader* CreateComputeShader(char const* shaderName, char const* source,
+		char const* entryPoint);
+
+	Shader* CreateComputeShader(char const* shaderPath,
+		char const* entryPoint);
+
 	Shader* GetShader(char const* shaderName);
 	bool CompileShaderToByteCode(std::vector<unsigned char>& outByteCode, char const* name,
 		char const* source, char const* entryPoint, char const* target);
 	void BindShader(Shader* shader);
+	void BindComputeShader(Shader* computeShader);
 
 	VertexBuffer* CreateVertexBuffer(const unsigned int size, unsigned int stride);
 	IndexBuffer* CreateIndexBuffer(const unsigned int size, unsigned int stride);
+	StructuredBuffer* CreateStructuredBuffer(uint32_t stride, uint32_t count, bool createSRV, bool createUAV, unsigned int uavFlags = 0, const void* initData = nullptr);
+
+	void UpdateConstantBuffer(ConstantBuffer* cb, const void* data, size_t size);
+
+
+	void BindConstantBufferCS(int slot, ConstantBuffer* cb);
+	void BindConstantBufferVS(int slot, ConstantBuffer* cb);
+	void BindConstantBufferGS(int slot, ConstantBuffer* cb);
+	void BindConstantBufferPS(int slot, ConstantBuffer* cb);
+
+
 	void CopyCPUToGPU(VertexBuffer* vbo, IndexBuffer* ibo, const Vertex_PCU* vertexes, const unsigned int* indices, int numVertexes, int numIndices);
 	void CopyCPUToGPU(VertexBuffer* vbo, IndexBuffer* ibo, const Vertex_PCUTBN* vertexes, const unsigned int* indices, int numVertexes, int numIndices);
 	void BindVertexBuffer(VertexBuffer* vbo);
 	void BindIndexBuffer(IndexBuffer* ibo);
 
-	ConstantBuffer* CreateConstantBuffer(const unsigned int size);
+	ConstantBuffer* CreateConstantBuffer(unsigned int size);
 	void CopyCPUToGPU(const void* data, unsigned int size, ConstantBuffer* cbo) const;
 	void BindConstantBuffer(int slot, ConstantBuffer* cbo) const;
 
 	void SetCameraConstants(const Camera& camera) const;
 	void SetModelConstants(const Mat44& modelToWorldTransform = Mat44(), const Rgba8 modelColor = Rgba8::WHITE) const;
-	void SetLightConstants(Lights light);
+	void SetLightConstants(Lights lights);
 	void SetSpecialEffect(int effect);
 	void SetPerFrameConstants(PerFrameDebug debugData);
 
@@ -190,6 +229,32 @@ public:
 
 	Shader* GetCurrentShader() const { return m_currentShader; }
 
+	bool IsDeviceLost();
+
+
+	const Camera* GetCurrentCamera() const { return m_currentCamera; }
+
+	bool CreateSceneDepth(IntVec2 size, unsigned int sampleCount = 1);
+	void DestroySceneDepth();
+	void CreateBackbufferRTV();
+	void OnResizeBackbuffer(unsigned int width, unsigned int height);
+	void BeginOpaquePass();
+	void EndOpaquePass();
+	ID3D11ShaderResourceView* GetSceneDepthSRV() const;
+	ID3D11SamplerState* GetSamplerState() const { return m_samplerState; }
+
+	void ClearScene();
+
+	ID3D11DepthStencilView* GetMainDSV_ReadOnly() const;
+	ID3D11RenderTargetView* GetMainRTV() const;
+	ID3D11DepthStencilView* GetMainDSV() const;
+
+	void CreateLightCBO();
+	ConstantBuffer* GetLightCBO() const { return m_lightCBO; }
+	ConstantBuffer* m_cameraCBO = nullptr;
+	ConstantBuffer* m_modelCBO = nullptr;
+	ConstantBuffer* m_lightCBO = nullptr;
+	mutable const Camera* m_currentCamera = nullptr;
 private:
 	//
 	RendererConfig m_config;
@@ -203,13 +268,23 @@ private:
 	VertexBuffer* m_immediatePCUTBNVBO = nullptr;
 	IndexBuffer* m_immediateIBO = nullptr;
 
-	Camera* m_currentCamera = nullptr;
+	
+    mutable std::vector<const Camera*> m_cameraStack;
 
-	ConstantBuffer* m_cameraCBO = nullptr;
-	ConstantBuffer* m_modelCBO = nullptr;
-	ConstantBuffer* m_lightCBO = nullptr;
+	
+	Lights m_lights = {};
 	ConstantBuffer* m_perframeCBO = nullptr;
 	ConstantBuffer* m_specialCBO = nullptr;
+
+	ID3D11Texture2D* m_sceneDepthTex = nullptr;
+	ID3D11DepthStencilView* m_sceneDepthDSV = nullptr;
+	ID3D11DepthStencilView* m_sceneDepthDSV_ReadOnly = nullptr;
+	ID3D11ShaderResourceView* m_sceneDepthSRV = nullptr;
+	ID3D11Texture2D* m_sceneDepthCopyTex = nullptr;
+	ID3D11ShaderResourceView* m_sceneDepthCopySRV = nullptr;
+	ID3D11Texture2D* m_backbufferTex = nullptr;
+	ID3D11RenderTargetView* m_backbufferRTV = nullptr;
+
 
 	ID3D11BlendState* m_blendState = nullptr;
 	ID3D11BlendState* m_blendStates[(int)(BlendMode::COUNT)] = {};
@@ -221,8 +296,8 @@ private:
 	ID3D11RasterizerState* m_rasterizerStates[(int)(RasterizerMode::COUNT)] = {};
 
 	ID3D11Texture2D* m_depthStencilTexture = nullptr;
-	ID3D11DepthStencilView* m_depthStencilDSV = nullptr;
 
+	ID3D11DepthStencilView* m_depthStencilDSV = nullptr;
 	ID3D11DepthStencilState* m_depthStencilState = nullptr;
 	ID3D11DepthStencilState* m_depthStencilStates[(int)(DepthMode::COUNT)] = {};
 

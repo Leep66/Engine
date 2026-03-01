@@ -88,6 +88,8 @@ public:
 	Vec2 GetCursorClientDelta() const;
 	Vec2 GetCursorClientPosition() const;
 	Vec2 GetCursorNormalizedPosition() const;
+	Vec2 GetCursorOnScreenPosition(Vec2 cameraSize) const;
+
 
 	static bool Event_KeyPressed(EventArgs& args);
 	static bool Event_KeyReleased(EventArgs& args);
